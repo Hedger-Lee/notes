@@ -505,9 +505,254 @@ from
 --使用聚合函数累加效果，求出对应的组名，筛选去除'/'所在的行
 ```
 
+### 数据平移
+
+> 数据平移：一般在工作中是用来计算数据的同比和环比的
+
+- lag(列名)  将列的数据往下挪一行
+
+- lead(列名)  将列的数据往上挪一行
+
+#### 同比
+
+> 在几个不同周期内，对周期内相同的时间段进行数据的比较
+
+```sql
+--同比的数据计算：
+
+select a.y,a.m,(a.amount-b.amount)/b.amount 增长率 from sales a join sales b on a.m=b.m and a.y=b.y+1;
+
+select a.*,(amount-last_y)/last_y 增长率 from
+
+(select sales.*,
+
+​       lag(amount) over(partition by m order by y) last_y
+
+  from sales) a
+
+ where last_y is not null;
+```
 
 
-**数据平移**
+
+#### 环比
+
+> 在一个时间周期内，对相邻的时间段进行数据比较
+
+```sql
+--使用表连接的方法进行数据环比的计算：
+
+select a.y,a.m,(a.amount-b.amount)/b.amount from sales a join sales b on a.m=b.m+1;
+
+--使用lag()进行数据的下移，进行环比的计算
+
+select a.*,(amount-last_m)/last_m from
+
+(select sales.*,
+
+​       lag(amount) over(order by m) last_m
+
+  from sales) a;
+```
+
+
+
+```sql
+create table sales(
+
+y number,
+
+m number,
+
+amount number
+
+);
+
+insert into sales values(2019,1,123.12);
+
+insert into sales values(2019,2,124.55);
+
+insert into sales values(2019,3,126.56);
+
+insert into sales values(2019,4,128.54);
+
+insert into sales values(2019,5,112.89);
+
+insert into sales values(2019,6,123.45);
+
+insert into sales values(2019,7,129.68);
+
+insert into sales values(2019,8,112.32);
+
+insert into sales values(2019,9,119.54);
+
+insert into sales values(2019,10,114.78);
+
+insert into sales values(2019,11,112.32);
+
+insert into sales values(2019,12,110.18);
+
+commit;
+```
+
+## 行列转换
+
+> 行展示的数据，转换成列展示的数据
+
+### pivot()
+
+> 使用流程：
+>
+> 先找出需要的数据，再在privot函数中进行分组聚合函数的操作，显示需要的列
+
+**基本句型**：
+
+```sql
+select * from 
+(select 需要的数据的列 from 原来的表格名)
+pivot(
+聚合函数(列名) 
+    for 
+分组的列名 
+    in 
+(新的列名1,新的列名2...)
+);
+```
+
+```sql
+--以列的方式展示部门平均工资：
+select * from
+
+(select deptno,sal from emp)
+
+pivot(avg(sal) for deptno in (10,20,30));
+
+--以列的方式展示及格和不及格人数：
+select * from
+
+(select userid,
+
+​       case when score<60 then '不及格' else '及格' end s
+
+  from chengji)
+
+pivot(count(userid) for s in('及格','不及格'));
+
+
+--使用case...when和聚合函数实现行转列的效果：
+select 
+       sum(case when score>=60 then 1 else 0 end) 及格,
+       sum(case when score<60 then 1 else 0 end) 不及格 
+  from chengji;
+
+--计算emp表中每个部门里面，每个工作岗位的平均工资
+
+select * from
+
+(select deptno,job,sal from emp)
+
+pivot(avg(sal) for job in ('CLERK','SALESMAN','MANAGER','PRESIDENT','ANALYST'));
+```
+
+```sql
+--练习：
+--有三个工资等级，小于2000是C，大于等于2000小于3000是B，大于3000是A，需要查询数据如下：
+--A     B     C
+--1     X     Y
+select * from 
+(select case when sal<2000 then 'C'
+          when sal>=2000 and sal<3000 then 'B'
+            else 'A' end c
+  from emp
+)pivot(count(c) for c in ('A','B','C'));
+
+select 
+       sum(case when sal<2000 then 1 else 0 end) C,
+       sum(case when sal>=2000 and sal<3000 then 1 else 0 end) B,
+       sum(case when sal>=3000 then 1 else 0 end) A
+  from emp;
+```
+
+## 临时表
+
+> 表里面的数据不是永久存在的
+
+很大的表格进行表连接查询的时候，将每个表分开进行数据的筛选，将筛选的结果保存到临时表中，最后再对临时表的数据，进行表的连接。为了减少数据筛选和查询时候的数据量。
+
+### 会话级临时表
+
+> 本次登录的过程中，数据一直存在，如果重新登录，数据就消失了
+
+```sql
+create  global  temporary  table  临时表的名字(
+
+列名 数据类型
+
+)on  commit  preserve rows;
+
+
+--创建emp的会话级临时表
+
+create global temporary table tmp_emp(
+
+empno number,
+
+ename varchar2(30),
+
+job varchar2(30),
+
+mgr number,
+
+hiredate date,
+
+sal number,
+
+comm number,
+
+deptno number
+
+)on commit preserve rows;
+```
+
+
+
+### 事务级临时表
+
+> 操作了事务之后（commit,  rollback），数据就会消失
+
+```sql
+create global temporary table 临时表名字(
+
+列名 数据类型
+
+)on commit delete rows;
+
+
+
+--创建emp的事务级临时表
+
+create global temporary table tmp_emp_2(
+
+empno number,
+
+ename varchar2(30),
+
+job varchar2(30),
+
+mgr number,
+
+hiredate date,
+
+sal number,
+
+comm number,
+
+deptno number
+
+)on commit delete rows;
+```
+
+
 
 
 

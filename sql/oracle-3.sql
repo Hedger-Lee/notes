@@ -277,7 +277,13 @@ from
  from emp a join emp b on a.empno=b.mgr) t
 group by empno having count(1)=count(c));
 
-select * from emp a join emp b on a.empno=b.mgr order by a.empno;
+select distinct * from
+(select a.*,
+   max(b.sal) over(partition by a.empno) max_sal
+ from emp a join emp b on a.empno=b.mgr)
+where sal>max_sal;
+
+
 
 --5.查询每个人在自己所在部门中工资所占的比例，结果保留两位小数
 select t.*,round(sal/s,2) from 
@@ -293,11 +299,84 @@ from
  from emp) t;
 
 
+create table sales(
+y number,
+m number,
+amount number
+);
+
+insert into sales values(2019,1,123.12);
+insert into sales values(2019,2,124.55);
+insert into sales values(2019,3,126.56);
+insert into sales values(2019,4,128.54);
+insert into sales values(2019,5,112.89);
+insert into sales values(2019,6,123.45);
+insert into sales values(2019,7,129.68);
+insert into sales values(2019,8,112.32);
+insert into sales values(2019,9,119.54);
+insert into sales values(2019,10,114.78);
+insert into sales values(2019,11,112.32);
+insert into sales values(2019,12,110.18);
+commit;
+
+--环比计算
+select a.*,(a.amount-b.amount)/b.amount from sales a join sales b on a.m=b.m+1;
+select t.*,(amount-last_m)/last_m 增长率 from
+(select sales.*,
+       lag(amount) over(order by m) last_m
+ from sales) t;
+ 
+
+--以列的方式展示部门平均工资
+select * from
+(select deptno,sal from emp)
+pivot(avg(sal) for deptno in (10,20,30));
+
+--以列的方式显示及格和不及格的人数
+select * from 
+(select userid,
+case when score<60 then '不及格' else '及格' end s
+  from chengji)
+pivot(count(userid) for s in ('及格','不及格'));
+
+--计算emp表中每个部门里面，每个工作岗位的平均工资
+select * from
+(select deptno,job,sal from emp)
+pivot(avg(sal) for job in ('CLERK','SALESMAN','MANAGER','ANALYST','PRESIDENT'));
+
+--练习：
+--有三个工资等级，小于2000是C，大于等于2000小于3000是B，大于3000是A，需要查询数据如下：
+--A     B     C
+--1     X     Y
+select * from 
+(select case when sal<2000 then 'C'
+          when sal>=2000 and sal<3000 then 'B'
+            else 'A' end c
+  from emp
+)pivot(count(c) for c in ('A','B','C'));
 
 
+create global temporary table tmp_emp(
+empno number,
+ename varchar2(30),
+job varchar2(30),
+mgr number,
+hiredate date,
+sal number,
+comm number,
+deptno number
+)on commit preserve rows;
 
-
-
+create global temporary table tmp_emp_2(
+empno number,
+ename varchar2(30),
+job varchar2(30),
+mgr number,
+hiredate date,
+sal number,
+comm number,
+deptno number
+)on commit delete rows;
  
  
  
