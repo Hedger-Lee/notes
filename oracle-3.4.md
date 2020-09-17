@@ -344,6 +344,8 @@ where rownum=1;
 
 ## 分析函数
 
+> 核心是开窗函数 over()
+
 ### 聚合计算(over())
 
 > over(partition by 分组字段 order by 排序字段)  开窗函数
