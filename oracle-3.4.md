@@ -1,4 +1,4 @@
-# oracle-3
+# oracle-3|4
 
 ## 统计注意点
 
@@ -714,8 +714,6 @@ deptno number
 )on commit preserve rows;
 ```
 
-
-
 ### 事务级临时表
 
 > 操作了事务之后（commit,  rollback），数据就会消失
@@ -751,10 +749,3 @@ deptno number
 
 )on commit delete rows;
 ```
-
-
-
-
-
-
-
