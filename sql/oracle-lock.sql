@@ -346,11 +346,13 @@ select * from students where sname like '张%';
 
 --3.查询姓“刘”的老师的个数
 select * from teacher;
-select tname,count(1) from teacher where tname like '刘%' group by tname;
+select count(1) from teacher where tname like '刘%';
 
 --4.查询选了课程的学生人数
 select count(1) from 
-(select distinct sno from degree) ;
+(select distinct sno from degree);
+
+select 
 
 --5.查询有学生考试及格的课程，并按课程号从大到小排列
 select * from degree;
@@ -475,6 +477,144 @@ select distinct * from
 count(1) over(partition by s.sno) c
  from degree d right join students s on d.sno=s.sno)
 where c<(select count(1) from course);
+
+drop table sale_info;
+
+--创建有两个分区的分区表
+create table sale_info(
+saleid number,
+salename varchar2(20),
+saletime date
+)partition by range(saletime)
+(
+           partition TIME20200916 values less than(date'2020-09-16'),
+           partition TIME20200917 values less than(date'2020-09-17')
+);
+--创建有三个分区的分区表
+create table sale_info(
+saleid number,
+salename varchar2(20),
+saletime date
+)partition by range(saletime)
+(
+           partition TIME20200916 values less than(date'2020-09-16'),
+           partition TIME20200917 values less than(date'2020-09-17'),
+           partition TIME20200918 values less than(date'2020-09-18')
+);
+--创建有四个分区的分区表
+create table sale_info(
+saleid number,
+salename varchar2(20),
+saletime date
+)partition by range(saletime)
+(
+           partition TIME20200916 values less than(date'2020-09-16'),
+           partition TIME20200917 values less than(date'2020-09-17'),
+           partition TIME20200918 values less than(date'2020-09-18'),
+           partition TIME20200919 values less than(date'2020-09-19')
+);
+
+--合并三个分区（出现问题？）
+alter table sale_info merge partitions TIME20200916,TIME20200917,TIME20200918
+into partition month09;
+
+select * from user_tab_partitions where table_name='SALE_INFO';
+--添加新分区
+alter table sale_info add partition values less than(date'2020-09-18');
+--重命名分区
+alter table sale_info rename partition SYS_P41 to TIME20200918;
+--合并两个分区
+alter table sale_info merge partitions TIME20200916,TIME20200917
+into partition month09;
+alter table sale_info merge partitions MONTH09,TIME20200918
+into partition month09_02;
+
+alter table sale_info rename partition MONTH09_02 to MONTH09;
+
+alter table sale_info rename partition SYS_P43 to MONTH09;
+alter table sale_info rename partition SYS_P42 to MONTH09;
+
+
+--拆分分区
+alter table sale_info split partition MONTH09 at(date'2020-09-16');
+
+alter table sale_info split partition SYS_P43 at(date'2020-09-17') into (partition time20200917,partition time20200918);
+alter table sale_info rename partition SYS_P42 to TIME20200916;
+
+select * from user_tab_partitions where table_name='SALE_INFO';
+
+--删除分区
+alter table sale_info drop partition TIME20200916;
+alter table sale_info drop partition TIME20200917;
+alter table sale_info drop partition TIME20200918;
+
+
+--创建同义词
+create public synonym sal for emp;
+select * from sal;
+--删除同义词
+drop public synonym sal;
+
+--序列
+create sequence seq;
+select seq.nextval from dual;
+select seq.currval from dual;
+drop sequence seq;
+
+create sequence seq
+start with 100
+maxvalue 110
+minvalue 90
+increment by 2
+cycle
+cache 10;
+
+select seq.nextval from dual;
+
+
+--视图
+create or replace view max_dname as
+(select dname from dept where deptno=
+(select deptno from 
+(select deptno,count(1) c from emp group by deptno order by c desc)
+where rownum=1))
+with read only;
+
+select * from max_dname;
+
+--物化视图
+create materialized view male_20_stu
+refresh on commit
+as (select * from students where ssex='男' and sage>20);
+select * from male_20_stu;
+
+create materialized view female_20_stu
+refresh on demand
+start with sysdate
+next to_date(concat(to_char(sysdate+1,'yyyy-mm-dd'),' 8:00:00'),'yyyy-mm-dd hh24:mi:ss')
+as (select * from students where ssex='女' and sage>20);
+
+select * from female_20_stu;
+update students set sage=25 where sno='s008';
+
+begin
+  dbms_mview.refresh(
+       LIST=>'FEMALE_20_STU',
+       METHOD=>'COMPLETE',
+       PARALLELISM=>4
+  );
+end;
+
+
+
+
+
+
+
+
+
+
+
 
 
 
