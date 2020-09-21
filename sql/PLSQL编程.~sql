@@ -1,0 +1,96 @@
+declare
+  n1 number;
+begin
+  n1:=10;
+  dbms_output.put_line('数字是:'||n1);
+end;
+
+declare 
+  n1 number;
+  n2 number;
+  n3 number;
+begin
+  n1:=&数字1是;
+  n2:=&数字2是;
+  n3:=n1+n2;
+  dbms_output.put_line(n3);
+end;
+
+declare 
+  n1 number;
+  n2 number;
+  n3 number;
+begin
+  n1:=&数字1是;
+  n2:=&数字2是;
+  n3:=n1+n2;
+  dbms_output.put_line(n3);
+end;
+
+
+declare
+  ename varchar2(20);
+begin
+  ename:='&你的名字：';
+  dbms_output.put_line(ename);
+end;
+
+
+declare
+  ename varchar2(20);
+begin
+  ename:='&&haha';
+  dbms_output.put_line(ename);
+end;
+
+declare
+  t date;
+begin
+  t:=to_date('&年'||'-'||'&月'||'-'||'&日','yyyy-mm-dd');
+  dbms_output.put_line(t);
+end;
+
+--保存查询结果
+declare
+  v_ename varchar2(20);
+  v_job varchar2(20);
+begin
+  select ename,job into v_ename,v_job from emp where sal=5000;
+  dbms_output.put_line(v_ename||','||v_job); 
+end;
+
+--引用型变量
+declare
+  v_ename emp.ename%type;
+  v_job emp.job%type;
+begin
+  select ename,job into v_ename,v_job from emp where sal=5000;
+  dbms_output.put_line(v_ename||','||v_job); 
+end;
+
+--记录型变量
+declare
+  v_user emp%rowtype;
+begin
+  select * into v_user from emp where sal=5000;
+  dbms_output.put_line(v_user.ename||','||v_user.sal||','||v_user.job); 
+end;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

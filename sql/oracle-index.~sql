@@ -97,7 +97,7 @@ select sno,sname from students where sno in
 (select a.sno from
 (select * from degree where cno='c001') a join 
 (select * from degree where cno='c002') b on a.sno=b.sno
-and a.score>b.score);
+where a.score>b.score);
 
 
 
@@ -106,7 +106,7 @@ select * from degree;
 32.查询至少有一门课与学号为“s001”的同学所学相同的同学的学号和姓名 
 select sno,sname from students where sno in(
 select  distinct sno from degree where cno in 
-(select cno from degree where sno='s001') and sno!='s001');
+(select cno from degree where sno='s001'));
 
 33.查询学过学号为“s001”同学所有门课的其他同学学号和姓名
 select sno,sname from students where sno in(
@@ -115,7 +115,7 @@ select sno from
 count(1) over(partition by sno) c
  from degree where cno in (
 select cno from degree where sno='s001'
-) and sno!='s001') where c>=
+) and sno!='s001') where c=
 (select count(1) from degree where sno='s001'));
 
 34.查询和“s002”号的同学学习的课程完全相同的其他同学学号和姓名 

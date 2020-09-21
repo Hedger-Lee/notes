@@ -352,7 +352,6 @@ select count(1) from teacher where tname like '刘%';
 select count(1) from 
 (select distinct sno from degree);
 
-select 
 
 --5.查询有学生考试及格的课程，并按课程号从大到小排列
 select * from degree;
@@ -444,7 +443,7 @@ select sno,avg_score from
 (select degree.*,
        avg(score) over(partition by sno) avg_score,
        count(1) over(partition by sno) c
- from degree where score<60) where c>1;
+ from degree where score<60) where c>=1;
 
 --20.查询各科成绩前三名的记录:(不考虑成绩并列情况)
 select * from 
@@ -456,12 +455,12 @@ where r<=3;
 --21.查询每门功课成绩最好的前两名(并列 )
 select * from 
 (select degree.*,
-       rank() over(partition by cno order by score desc) r
+       dense_rank() over(partition by cno order by score desc) r
  from degree)
 where r<=2;
 
 --22.查询1998年出生的学生名单 
-select * from students where (to_char(sysdate,'yyyy')-1998)=sage;
+select * from students where sage=(to_number(to_char(sysdate,'yyyy'))-1998);
 
 --23.查询同名同姓学生名单，并统计同名人数
 select s1.*,
@@ -479,6 +478,8 @@ count(1) over(partition by s.sno) c
 where c<(select count(1) from course);
 
 drop table sale_info;
+
+
 
 --创建有两个分区的分区表
 create table sale_info(
