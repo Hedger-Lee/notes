@@ -233,7 +233,7 @@ alter table stu_info modify mobile integer;
 ##### 5.1.4重命名列
 
 ```sql
-alter table rename column 原列名 to 新列名;
+alter table 表名 rename column 原列名 to 新列名;
 alter table stu_info rename column mobile to phone;
 ```
 

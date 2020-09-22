@@ -521,17 +521,12 @@ from
 
 ```sql
 --同比的数据计算：
-
 select a.y,a.m,(a.amount-b.amount)/b.amount 增长率 from sales a join sales b on a.m=b.m and a.y=b.y+1;
 
 select a.*,(amount-last_y)/last_y 增长率 from
-
 (select sales.*,
-
-​       lag(amount) over(partition by m order by y) last_y
-
+       lag(amount) over(partition by m order by y) last_y
   from sales) a
-
  where last_y is not null;
 ```
 

@@ -610,4 +610,3 @@ select ename from emp where comm is not null and sal=
 
 
 ```
-

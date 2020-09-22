@@ -22,6 +22,8 @@ end;
 
 ### 输出函数
 
+> `dbms_output.put_line();`
+
 ```sql
 declare
 
@@ -252,74 +254,14 @@ end;
 
 ### 逻辑判断和分支
 
-```sql
-if  判断  then
-  执行语句;
-end if;
-```
-
-```sql
-declare
-  n number;
-begin
-  n:=&数字;
-  if n>0 then
-    dbms_output.put_line('正数');
-  end if; 
-end;
-```
+#### if
 
 ```sql
 if  判断1  then
   执行语句;
 elsif  判断2  then
    执行语句;
-end if;
-```
-
-```sql
-declare
-  n number;
-begin
-  n:=&数字;
-  if n>0 then
-    dbms_output.put_line('正数');
-  elsif n<0 then
-    dbms_output.put_line('负数'); 
-  end if; 
-end;
-```
-
-```sql
-if  判断1  then
-  执行语句;
-elsif  判断2  then
-   执行语句;
-elsif  判断3 then
-   执行语句;
-end if;
-```
-
-```sql
-declare
-  n number;
-begin
-  n:=&数字;
-  if n>0 then
-    dbms_output.put_line('正数');
-  elsif n<0 then
-    dbms_output.put_line('负数'); 
-  elsif n=0 then
-    dbms_output.put_line('零'); 
-  end if; 
-end;
-```
-
-```sql
-if  判断1  then
-  执行语句;
-elsif  判断2  then
-   执行语句;
+···
 else
    执行语句;
 end if;
@@ -382,30 +324,382 @@ begin
 end;
 
 --输入员工的编号，如果员工是10号部门，涨薪10%，如果是20号部门，涨薪20%，30号部门涨薪30%。
+declare
+       v_empno number;
+       v_sal number;
+       c number;
+       v_grade number;
+begin
+  v_empno:=&员工编号;
+  select count(1) into c from emp where empno=v_empno;
+  if c=1 then
+    select sal into v_sal from emp where empno=v_empno;
+    select grade into v_grade from salgrade where v_sal>=losal and v_sal<=hisal;
+    dbms_output.put_line(v_grade); 
+  else
+    dbms_output.put_line('员工不存在'); 
+  end if;
+end;
+```
 
+#### case when
+
+```sql
+declare
+begin
+  case 
+    when xxx then 执行语句;
+    when xxx then 执行语句;
+    ...
+    else  执行语句;
+  end case;
+end;
+```
+
+```sql
+declare
+  v_sno varchar2(10);
+  v_score number;
+begin
+  v_sno:='&学号';
+  select avg(score) into v_score from degree where sno=v_sno;
+  case
+    when v_score<60 then dbms_output.put_line('不及格');
+    else dbms_output.put_line('及格');  
+  end case;
+end;
+
+--用case when判断emp表中某个用户编号是否存在
+declare
+  v_empno emp.empno%type;
+  c number;
+begin
+  v_empno:=&员工编号;
+  select count(1) into c from emp where empno=v_empno;
+  case
+    when c=0 then dbms_output.put_line('该用户不存在'); 
+    else
+      dbms_output.put_line('用户存在');
+  end case; 
+end;
+```
+
+### 循环
+
+#### for语法
+
+```sql
+for 新的变量名字 in 范围 loop
+    执行语句;
+end loop;
+```
+
+```sql
+declare
+begin
+  for i in 1..10 loop
+    dbms_output.put_line(i); 
+  end loop;
+end;
+
+--累计求和：
+declare
+  s number;
+begin
+  s:=0;
+  for i in 1..10 loop
+    s:=s+i;  
+  end loop;
+  dbms_output.put_line(s); 
+end;
+
+--计算100以内所有奇数的和
+declare
+  s number;
+begin
+  s:=0;
+  for i in 1..100 loop
+    if mod(i,2)!=0 then
+      s:=s+i;
+    end if;
+  end loop;
+  dbms_output.put_line(s); 
+end;
+
+--9x9乘法表
+declare
+begin
+  for i in 1..9 loop
+    for j in 1..i loop
+      dbms_output.put(j||'x'||i||'='||i*j||'  '); 
+    end loop;
+    dbms_output.put_line(''); 
+  end loop;
+end;
+```
+
+```sql
+--练习：
+--将emp中所有的员工信息查询出来，判断员工是否是manager，
+--如果是manager并且还没有设置奖金，就更新奖金为他本人工资的10%，
+--改完之后还要打印出修改的是谁（显示名字），以及修改后奖金的结果是多少
+--全表循环
+declare
+  type v_users is record(
+       v_ename emp.ename%type,
+       v_job emp.job%type,
+       v_comm emp.comm%type 
+  );
+  v_user v_users;
+  c number;
+begin
+  select count(1) into c from emp;
+  for i in 1..c loop
+    select ename,job,comm into v_user from (select emp.*,rownum r from emp) where r=i;
+    if v_user.v_job='MANAGER' and v_user.v_comm is null then
+        update emp set comm=sal*0.1 where ename=v_user.v_ename;
+        commit;
+        select comm into v_user.v_comm from emp where ename=v_user.v_ename;
+        dbms_output.put_line('名字：'||v_user.v_ename||',奖金：'||v_user.v_comm); 
+    end if;
+  end loop; 
+end;
+
+--先筛选再循环
+declare
+  c number;
+  v_ename varchar2(20);
+  v_sal number;
+  v_job varchar2(20);
+begin
+  select count(1) into c from emp where job='MANAGER' and comm is null;
+  for i in 1..c loop
+    select ename,sal,job into v_ename,v_sal,v_job from
+    (select emp.*,rownum r from emp where job='MANAGER' and comm is null)
+    where r=1;
+    update emp set comm=sal*0.1 where ename=v_ename;
+    dbms_output.put_line(v_ename||','||v_sal*0.1); 
+  end loop;
+end;
+```
+
+#### while
+
+> while循环的语法：当判断为真的时候进入循环，判断为假跳出循环
+
+```sql
+while 判断是否在循环范围内 loop
+    执行语句;
+end loop;
+```
+
+```sql
+declare
+  n number;
+begin
+  n:=10;
+  while n>=1 loop
+    dbms_output.put_line(n); 
+    n:=n-3;
+  end loop;
+end;
+```
+
+#### loop
+
+> loop循环的语法：当判断为假的时候跳出循环
+
+```sql
+loop
+    exit when 判断什么时候退出循环；
+    执行语句;
+end loop;
+```
+
+```sql
+declare
+  n number;
+begin
+  n:=10;
+  loop 
+    exit when n<1;
+    dbms_output.put_line(n);
+    n:=n-3;
+  end loop;
+end;
+```
+
+#### 循环中的三个关键字
+
+##### exit
+
+> 跳出循环，不要循环了，一个关键字只能控制离它最近的一个循环
+
+- return：跳出整个正在运行的程序
+
+##### continue
+
+跳过本次循环，直接开始下一次的循环
+
+##### goto
+
+使用goto语句跳到定义标签的位置
+
+```sql
+goto 标签名
+<<标签名>>
+```
+
+#### 将select查询的结果当成for循环的范围
+
+```sql
+declare
+begin
+  for i in (select * from emp where job='MANAGER' and comm is null) loop
+    update emp set comm=i.sal*0.1 where empno=i.empno;
+    commit; 
+    dbms_output.put_line(i.ename||','||i.sal*0.1); 
+  end loop;
+end;
+```
+
+## 游标处理
+
+> 将一个查询语句的结果保存在一个游标的变量中，然后以行为单位去查看游标保存的表格结果。
+
+根据游标的内容定义和声明的位置：
+
+1. 在声明的同时赋值，就是静态游标，在begin里面赋值，就是动态游标
+2. 如果有对游标的操作步骤，那么就是显性游标，否则就是隐性游标
+
+**显性游标的操作步骤**：
+
+1. 定义和声明游标
+   cursor 游标名字 is select语句;
+2. 打开游标
+   open 游标名字;
+3. 获取游标的内容
+   fetch 游标名字 into 行变量中;
+4. 关闭游标
+   close 游标名字;
+
+**使用while循环操作游标**
+
+```sql
+declare
+  --定义和声明游标
+  cursor m_cursor is select * from emp;
+  v_user emp%rowtype;
+begin
+  --打开这个游标
+  open m_cursor;
+  --获取游标的内容
+  fetch m_cursor into v_user;
+  while m_cursor%found loop
+    dbms_output.put_line(v_user.empno||','||v_user.ename);
+    fetch m_cursor into v_user;
+  end loop;
+  --关闭游标
+  close m_cursor;  
+end;
+```
+
+**使用loop循环操作游标**
+
+```sql
+declare
+  cursor m_cursor is select * from emp where deptno=30;
+  v_user emp%rowtype;
+begin
+  open m_cursor;
+  loop
+    fetch m_cursor into v_user;
+    exit when m_cursor%notfound;
+    dbms_output.put_line(v_user.empno||','||v_user.ename);
+  end loop;
+  close m_cursor;
+end;
+```
+
+```sql
+--练习
+--1.使用代码块制造一个1-100的数字表格
+create table numbers(
+    n number
+  );
+declare
+begin
+  for i in 1..100 loop
+    insert into numbers values(i);
+  end loop;
+  commit;
+end;
+select * from numbers;
+--2.使用游标将这个表里面所有相加等于88的两个数字查询出来
+declare
+  cursor m_cursor is select * from numbers a join numbers b on a.n+b.n=88 where a.n<88/2;
+  type v_tnum is record(
+    a number,
+    b number
+  );
+  v_num v_tnum;
+begin
+  open m_cursor;
+  loop
+    fetch m_cursor into v_num;
+    exit when m_cursor%notfound;
+    dbms_output.put_line(v_num.a||','||v_num.b); 
+  end loop;
+  close m_cursor;
+end;
+--
+declare
+  cursor m1 is select * from numbers;
+  cursor m2 is select * from numbers;
+  n1 number;
+  n2 number;
+begin
+  open m1;
+  loop
+    fetch m1 into n1;
+    exit when m1%notfound;
+    open m2;
+    loop
+      fetch m2 into n2;
+      exit when m2%notfound;
+      if n1+n2=88 then
+        dbms_output.put_line(n1||','||n2); 
+      end if;
+    end loop;
+    close m2;
+    if n1=43 then
+      exit;
+    end if;
+  end loop;
+  close m1;
+end;
+```
+
+#### for循环的游标
+
+```sql
+declare
+  cursor m_cursor is select * from emp;
+begin
+  for i in m_cursor loop
+    dbms_output.put_line(i.empno); 
+  end loop;
+end;
+
+declare
+begin
+  for i in (select * from emp) loop
+    dbms_output.put_line(i.empno); 
+  end loop;
+end;
 ```
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-## 游标处理
 
 ### 动态游标
 

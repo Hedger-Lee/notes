@@ -164,35 +164,257 @@ select * from emp;
 --输入一个员工的编号，输出打印出这个员工的工资在salgrade表中对应的等级。
 select * from scott.salgrade;
 select * from scott.emp;
-
+select * from salgrade;
+insert into salgrade select * from scott.salgrade;
 declare
        v_empno number;
        v_sal number;
        c number;
+       v_grade number;
 begin
   v_empno:=&员工编号;
   select count(1) into c from emp where empno=v_empno;
   if c=1 then
     select sal into v_sal from emp where empno=v_empno;
-    if v_sal>=700 and v_sal<=1200 then
-      dbms_output.put_line(1); 
-    elsif v_sal>=1201 and v_sal<=1400 then
-      dbms_output.put_line(2);
-    elsif v_sal>=1401 and v_sal<=2000 then
-      dbms_output.put_line(3);
-    elsif v_sal>=2001 and v_sal<=3000 then
-      dbms_output.put_line(4);
-    elsif v_sal>=3001 and v_sal<=9999 then
-      dbms_output.put_line(5);
-    end if;
+    select grade into v_grade from salgrade where v_sal>=losal and v_sal<=hisal;
+    dbms_output.put_line(v_grade); 
   else
     dbms_output.put_line('员工不存在'); 
   end if;
 end;
 
 
+--用case when判断emp表中某个用户编号是否存在
+declare
+  v_empno emp.empno%type;
+  c number;
+begin
+  v_empno:=&员工编号;
+  select count(1) into c from emp where empno=v_empno;
+  case
+    when c=0 then dbms_output.put_line('该用户不存在'); 
+    else
+      dbms_output.put_line('用户存在');
+  end case; 
+end;
+
+--计算100以内所有奇数的和
+declare
+  s number;
+begin
+  s:=0;
+  for i in 1..100 loop
+    if mod(i,2)!=0 then
+      s:=s+i;
+    end if;
+  end loop;
+  dbms_output.put_line(s); 
+end;
+
+declare
+begin
+  for i in 1..4 loop
+    for j in 1..i loop
+      dbms_output.put('*'); 
+    end loop;
+    dbms_output.put_line(''); 
+  end loop;
+end;
+
+declare
+begin
+  for i in 1..9 loop
+    for j in 1..i loop
+      dbms_output.put(j||'x'||i||'='||i*j||'  '); 
+    end loop;
+    dbms_output.put_line(''); 
+  end loop;
+end;
 
 
+--练习：
+--将emp中所有的员工信息查询出来，判断员工是否是manager，
+--如果是manager并且还没有设置奖金，就更新奖金为他本人工资的10%，
+--改完之后还要打印出修改的是谁（显示名字），以及修改后奖金的结果是多少
+declare
+  type v_users is record(
+       v_ename emp.ename%type,
+       v_job emp.job%type,
+       v_comm emp.comm%type 
+  );
+  v_user v_users;
+  c number;
+begin
+  select count(1) into c from emp;
+  for i in 1..c loop
+    select ename,job,comm into v_user from (select emp.*,rownum r from emp) where r=i;
+    if v_user.v_job='MANAGER' and v_user.v_comm is null then
+        update emp set comm=sal*0.1 where ename=v_user.v_ename;
+        commit;
+        select comm into v_user.v_comm from emp where ename=v_user.v_ename;
+        dbms_output.put_line('名字：'||v_user.v_ename||',奖金：'||v_user.v_comm); 
+    end if;
+  end loop; 
+end;
+
+declare
+  c number;
+  v_ename varchar2(20);
+  v_sal number;
+  v_job varchar2(20);
+begin
+  select count(1) into c from emp where job='MANAGER' and comm is null;
+  for i in 1..c loop
+    select ename,sal,job into v_ename,v_sal,v_job from
+    (select emp.*,rownum r from emp where job='MANAGER' and comm is null)
+    where r=1;
+    update emp set comm=sal*0.1 where ename=v_ename;
+    dbms_output.put_line(v_ename||','||v_sal*0.1); 
+  end loop;
+end;
+
+
+declare
+  m number:=1;
+  n number;
+begin
+  while m<=5 loop
+    n:=1;
+    while n<=5 loop
+      dbms_output.put('*'); 
+      n:=n+1;
+    end loop;
+    dbms_output.put_line(''); 
+    m:=m+1;
+  end loop;
+end;
+
+declare
+  m number:=1;
+  n number;
+begin
+  loop
+    exit when m>5;
+    n:=1;
+    loop
+      exit when n>5;
+      dbms_output.put('*'); 
+      n:=n+1;
+    end loop;
+    dbms_output.put_line(''); 
+    m:=m+1;
+  end loop;
+end;
+
+--练习：假如从现在开始存钱，第一天存1分，第二天存2分，第三天存4分，每天翻倍，需要几天才能存够100W元。
+declare
+  s number:=0;
+  m number:=0.01;
+  d number:=0;
+begin
+  while s<1000000 loop
+    s:=s+m;
+    m:=m*2;
+    d:=d+1;
+    dbms_output.put_line(s||','||m||','||d); 
+  end loop;
+  dbms_output.put_line(d); 
+end;
+
+--练习：使用游标查询表格中每一个人的编号和名字，以及这个员工有几个下属
+declare
+  cursor m_cursor is select a.empno,a.ename,count(b.empno) from emp a left join emp b on a.empno=b.mgr group by a.empno,a.ename;
+  type v_users is record(
+       v_empno emp.empno%type,
+       v_ename emp.ename%type,
+       c number
+  );
+  v_user v_users;
+begin
+  open m_cursor;
+  fetch m_cursor into v_user;
+  while m_cursor%found loop
+    dbms_output.put_line(v_user.v_empno||','||v_user.v_ename||','||v_user.c);
+    fetch m_cursor into v_user;
+  end loop;
+  close m_cursor;
+end;
+
+declare
+  cursor m_cursor is select a.empno,a.ename,count(b.empno) from emp a left join emp b on a.empno=b.mgr group by a.empno,a.ename;
+  type v_users is record(
+       v_empno emp.empno%type,
+       v_ename emp.ename%type,
+       c number
+  );
+  v_user v_users;
+begin
+  open m_cursor;
+  loop  
+     fetch m_cursor into v_user;
+     exit when m_cursor%notfound;
+     dbms_output.put_line(v_user.v_empno||','||v_user.v_ename||','||v_user.c); 
+  end loop;
+  close m_cursor;
+end;
+
+--练习
+--1.使用代码块制造一个1-100的数字表格
+create table numbers(
+    n number
+  );
+declare
+begin
+  for i in 1..100 loop
+    insert into numbers values(i);
+  end loop;
+  commit;
+end;
+select * from numbers;
+--2.使用游标将这个表里面所有相加等于88的两个数字查询出来
+declare
+  cursor m_cursor is select * from numbers a join numbers b on a.n+b.n=88 where a.n<88/2;
+  type v_tnum is record(
+    a number,
+    b number
+  );
+  v_num v_tnum;
+begin
+  open m_cursor;
+  loop
+    fetch m_cursor into v_num;
+    exit when m_cursor%notfound;
+    dbms_output.put_line(v_num.a||','||v_num.b); 
+  end loop;
+  close m_cursor;
+end;
+
+
+--练习：
+--首先准备一个和emp相同结构的表格，
+--使用游标将emp表格中名字里面由S开头或者是A开头的员工，保存到另一个表，
+--保存进去之后，奖金为空的用0处理，名字变成只有首字母大写，其余字母小写。
+create table emp_2 as select * from scott.emp where 1=2;
+
+declare
+  cursor m is select * from emp where ename like 'S%' 
+              union all 
+              select * from emp where ename like 'A%';
+  v_user emp%rowtype;
+begin
+  open m;
+  loop
+    fetch m into v_user;
+    exit when m%notfound;
+    insert into emp_2 values(v_user.empno,initcap(v_user.ename),v_user.job,v_user.mgr,
+                                v_user.hiredate,v_user.sal,nvl(v_user.comm,0),v_user.deptno);
+    commit;
+  end loop;
+  close m;
+end;
+
+select * from emp_2;
+truncate table emp_2;
 
 
 
