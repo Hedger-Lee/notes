@@ -572,6 +572,10 @@ end;
 1. 在声明的同时赋值，就是静态游标，在begin里面赋值，就是动态游标
 2. 如果有对游标的操作步骤，那么就是显性游标，否则就是隐性游标
 
+### 静态游标
+
+#### 显性游标
+
 **显性游标的操作步骤**：
 
 1. 定义和声明游标
@@ -680,7 +684,7 @@ begin
 end;
 ```
 
-#### for循环的游标
+##### for循环的游标
 
 ```sql
 declare
@@ -699,15 +703,140 @@ begin
 end;
 ```
 
+#### 隐形游标
 
+> 代码发生了一个DML操作，查看这次操作影响的数据有多少
+> `游标%rowcount`
+>
+> **查看最近的那条sql语句所影响的行数**
+
+```sql
+declare
+begin
+  update emp set sal=sal+100 where sal<500;
+  if sql%found then
+    dbms_output.put_line(sql%rowcount); 
+  else
+    dbms_output.put_line('没有找到数据');
+  end if; 
+end;
+```
 
 ### 动态游标
 
-### 静态游标
+> 在begin执行的时候才指定运行的内容，
+> 不用在声明的时候就指定可以节省内存消耗，可以反复使用，在close之后可以重新open指定新的语句
+
+```sql
+declare
+  --动态游标的关键字 ref
+  --声明动态游标的类型
+  type cursor_t is ref cursor;
+  --声明一个游标
+  m_cursor cursor_t;
+  --定义一个变量用来存放游标的内容
+  v_user emp%rowtype;
+begin
+  --打开游标同时指定游标要去运行的sql语句
+  open m_cursor for select * from emp;
+  --sql语句可以动态筛选，比如：
+  --select * from emp where deptno=v_deptno;
+  
+  --循环的抓取游标的数据
+  loop
+    fetch m_cursor into v_user;
+    exit when m_cursor%notfound;
+    dbms_output.put_line(v_user.empno||v_user.ename); 
+  end loop;
+  --关闭游标
+  close m_cursor;
+end;
+```
+
+```sql
+--练习：
+--准备三个emp同结构的表格1,2,3，拆分原来emp的数据
+--将1-4月入职、5-8月、9-12月分别存储到三个不同的表格中
+create table emp_1 as select * from scott.emp where 1=2;
+create table emp_2 as select * from scott.emp where 1=2;
+create table emp_3 as select * from scott.emp where 1=2;
+
+declare
+  cursor m is select * from emp;
+begin
+  for i in m loop
+    if to_number(to_char(i.hiredate,'mm')) between 1 and 4 then
+      insert into emp_1 values( i.empno,i.ename,i.job,i.mgr,i.hiredate,i.sal,i.comm,i.deptno
+      );
+      commit;
+    elsif to_number(to_char(i.hiredate,'mm')) between 5 and 8 then
+      insert into emp_2 values(    i.empno,i.ename,i.job,i.mgr,i.hiredate,i.sal,i.comm,i.deptno
+      );
+      commit;
+    else
+      insert into emp_3 values( i.empno,i.ename,i.job,i.mgr,i.hiredate,i.sal,i.comm,i.deptno
+      );  
+      commit;
+    end if;
+  end loop;
+end;
+```
+
+## 动态sql语句
+
+> 因为在代码块里面只能直接使用DQL和DML语句
+>
+> `execute immediate 'sql语句';`
+
+```sql
+declare
+  tn varchar2(20);
+begin
+  tn:='&表名';
+  execute immediate 'truncate table '||tn;
+end;
+```
+
+```sql
+--练习：
+--在select * from user_tables;里面找到所有的emp开头的表，备份一份，备份表的名字是：原表名_20200923
+--例如emp_info表备份为   emp_info_20200923
+declare
+   cursor m is select table_name from user_tables where table_name like 'EMP%';
+   s varchar2(500);
+begin
+   for i in m loop
+       s:='create table '||i.table_name||'_'||to_char(sysdate,'yyyymmdd')||
+       ' as select * from '||i.table_name;
+       execute immediate s; 
+   end loop;
+end;
+
+--练习：删除掉所有今天的备份表    xxx_20200923
+declare
+  cursor m is select table_name from user_tables 
+              where table_name like '%\_'||to_char(sysdate,'yyyymmdd') escape '\';
+begin
+  for i in m loop
+      execute immediate 'drop table '||i.table_name;
+  end loop;
+end;
+```
 
 ## 存储过程
 
-## 动态sql语句
+> 一个有名字的代码块  procedure
+
+```sql
+create procedure 过程名
+as
+  声明部分;
+begin
+  执行语句;
+end;
+```
+
+
 
 ## 函数
 

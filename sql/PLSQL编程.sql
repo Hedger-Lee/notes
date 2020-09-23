@@ -416,7 +416,106 @@ end;
 select * from emp_2;
 truncate table emp_2;
 
+create table emp_1 as select * from emp where 1=2;
+create table emp_3 as select * from emp where 1=2;
 
+declare
+  type cursor_t is ref cursor;
+  m cursor_t;
+  v_user emp%rowtype;
+begin
+  open m for select * from emp;
+  loop
+    fetch m into v_user;
+    exit when m%notfound;
+    case
+      when to_number(to_char(v_user.hiredate,'mm'))>=1 
+                                and to_number(to_char(v_user.hiredate,'mm'))<=4 then
+        insert into emp_1 values(v_user.empno,v_user.ename,v_user.job,v_user.mgr,
+                                v_user.hiredate,v_user.sal,v_user.comm,v_user.deptno);
+        commit;
+      when to_number(to_char(v_user.hiredate,'mm'))>=5 
+                                and to_number(to_char(v_user.hiredate,'mm'))<=8 then
+        insert into emp_2 values(v_user.empno,v_user.ename,v_user.job,v_user.mgr,
+                                v_user.hiredate,v_user.sal,v_user.comm,v_user.deptno);
+        commit;
+      when to_number(to_char(v_user.hiredate,'mm'))>=9 
+                                and to_number(to_char(v_user.hiredate,'mm'))<=12 then
+        insert into emp_3 values(v_user.empno,v_user.ename,v_user.job,v_user.mgr,
+                                v_user.hiredate,v_user.sal,v_user.comm,v_user.deptno);
+        commit;
+      end case;
+  end loop;
+  close m;
+end;
+
+select * from emp_1;
+select * from emp_2;
+select * from emp_3;
+truncate table emp_1;
+truncate table emp_2;
+truncate table emp_3;
+
+
+declare
+begin
+  update emp set sal=sal+100 where deptno=10;
+  if sql%found then
+    dbms_output.put_line(sql%rowcount); 
+  else
+    dbms_output.put_line('没有找到数据');
+  end if; 
+  
+  update emp set sal=sal+100 where deptno=20;
+  if sql%found then
+    dbms_output.put_line(sql%rowcount); 
+  else
+    dbms_output.put_line('没有找到数据');
+  end if; 
+end;
+
+select * from emp;
+
+declare
+  type cursor_t is ref cursor;
+  m_cursor cursor_t;
+  v_user emp%rowtype;
+  v_deptno number;
+begin
+  v_deptno:=&部门编号;
+  open m_cursor for select * from emp where deptno=v_deptno;
+  loop
+    fetch m_cursor into v_user;
+    exit when m_cursor%notfound;
+    dbms_output.put_line(v_user.empno||v_user.ename); 
+  end loop;
+  close m_cursor;
+end;
+
+--练习：
+--在select * from user_tables;里面找到所有的emp开头的表，备份一份，备份表的名字是：原表名_20200923
+--例如emp_info表备份为   emp_info_20200923
+select table_name from user_tables where table_name like 'EMP%'
+
+declare
+  cursor m is select table_name from user_tables where table_name like 'EMP%';
+begin
+  for i in m loop
+    execute immediate 
+            'create table '||concat(i.table_name||'_',to_char(sysdate,'yyyymmdd'))||' as select * from '||i.table_name;
+  end loop; 
+end;
+
+--删除掉所有今天的备份表
+declare
+  cursor m is select table_name from user_tables where table_name like '%\_'||to_char(sysdate,'yyyymmdd') escape '\';
+begin
+  for i in m loop
+    execute immediate 'drop table '||i.table_name;
+  end loop; 
+end;
+analyzed
+select * from user_tables where table_name like 'EMP%';
 
 
 
