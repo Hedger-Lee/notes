@@ -836,7 +836,1303 @@ begin
 end;
 ```
 
+create or replace procedure beifen_table
+as
+  cursor m is select * from user_tables where table_name like 'EMP%';
+  s varchar2(500);
+begin
+  for i in m loop
+     s:='create table '||i.table_name||'_'||to_char(sysdate,'yyyymmdd')||
+        ' as select * from '||i.table_name;
+     execute immediate s; 
+  end loop;
+end;
 
+--在存储过程里面创建表，需要下面这个特殊的权限
+grant create any table to bigdata;
+
+--运行存储过程里面的代码
+call beifen_table();
+
+存储过程包含了传入的参数  in  和传出的参数  out
+create or replace procedure beifen_u_table(tn in varchar2)
+as
+begin
+  execute immediate 
+  'create table '||tn||'_'||to_char(sysdate,'yyyymmdd')||' as select * from '||tn;
+end;
+
+call beifen_u_table('EMP_1');
+
+如果存储过程里面有输出的Out参数，就需要用declare匿名块去运行
+create or replace procedure sum_(n1 in number,n2 in number,s1 out number,s2 out number)
+as
+begin
+  s1:=n1+n2;
+  s2:=n1-n2;
+end;
+
+declare
+  a number;
+  b number;
+begin
+  sum_(20,15,a,b);
+  dbms_output.put_line(a);
+  dbms_output.put_line(b);  
+end;
+
+使用存储过程自动创建分区表中的分区
+create or replace procedure add_user_part
+as
+  c number;
+  s varchar2(500);
+begin
+  select count(1) into c from user_tab_partitions where table_name='USER_PART'
+  and partition_name='D'||to_char(sysdate,'yyyymmdd');
+  if c=1 then
+    dbms_output.put_line('分区已经存在，不会再创建');
+  else
+    s:='alter table user_part add partition d'||to_char(sysdate,'yyyymmdd')||
+    ' values less than (date'''||to_char(sysdate+1,'yyyy-mm-dd')||''')';
+    execute immediate s;
+  end if;
+end;
+
+call add_user_part();
+
+异常处理
+1.系统预定义异常  21种
+返回行数太多的异常  too_many_rows
+数字类型转换错误  invalid_number
+除数为0错误  zero_divide
+游标还没有打开就进行抓取   invalid_cursor
+游标重复打开   cursor_already_open
+值操作的错误  value_error
+...
+create or replace procedure pro_t
+as
+  v_ename varchar2(20);
+  s number;
+  m varchar2(500);
+begin    
+  select ename into v_ename from emp where deptno=20;
+exception
+  when others then
+    s:=sqlcode;
+    m:=sqlerrm;
+    insert into error_logs values('pro_t',sysdate,s,m);
+end;
+
+call pro_t();
+
+--创建一个错误日志表格
+create table error_logs(
+pro_name varchar2(100),
+operte_time date,
+sql_code varchar2(20),
+sql_message varchar2(500)
+);
+
+2.系统非预定义异常  系统中有定义错误的编码，但是这个错误是没有名字的
+名字需要自己在初始化错误的时候去定义它
+如果需要单独处理非预定义的错误，就需要给错误编码设置名称
+--声明部分
+错误名字  exception;
+pragma exception_init(错误名字, 错误编码);
+--异常处理部分
+exception
+  when 错误名字 then
+      错误的处理;
+
+create or replace procedure pro_t2
+as
+  --声明一个存储错误的变量
+  fo_error exception;
+  --初始化这个错误，把名字和错误代码绑定在一起
+  pragma exception_init(fo_error,-2291);
+
+begin
+  update scott.emp set deptno=50 where ename='SMITH';
+  commit;
+
+exception
+  when fo_error then
+    dbms_output.put_line('主表中没有这个部门'); 
+end;
+
+如果是统一的处理各种错误和异常，就不需要去初始化名字。
+
+3.自定义异常  不是语法的错误，这是自己指定的逻辑上禁止的部分
+create or replace procedure pro_t3(v_empno number,v_sal number)
+as
+begin
+  if v_sal>5000 then
+    raise_application_error(-20888,'不能超过5000');  --20000   20999
+  else
+    update emp set sal=v_sal where empno=v_empno;
+    commit;
+  end if;
+end;
+
+call pro_t3(7369,5002);
+
+将存储过程运行中的错误保存到错误日志表中
+--准备一个错误日志表
+create table record_errors(
+pro_name varchar2(50),
+pro_time date,
+sql_text varchar2(500),
+sql_code number,
+sql_error varchar2(500)
+);
+
+--编写一个存储过程，将里面出现的错误记录下来
+create or replace procedure pro_update_dept
+as
+  s varchar2(500);
+  c number;
+  m varchar2(500);
+begin
+  for v_deptno in 40..60 loop
+      s:='update scott.emp set deptno='||v_deptno||' where empno=7369';
+      execute immediate s;
+      commit;
+  end loop;
+
+exception
+  when others then
+    c:=sqlcode;
+    m:=sqlerrm;
+    insert into record_errors values(
+    'pro_update_dept',sysdate,s,c,m
+    );
+    commit;
+end;
+
+如何更新表格的内容：
+--全量更新表格  将表格的内容全部删除，重新添加所有的数据
+create table beijing_amount(
+saleid number,
+saleman varchar2(20),
+price number,
+saletime date
+);
+
+create table shenzhen_amount(
+saleid number,
+saleman varchar2(20),
+price number,
+saletime date
+);
+
+create table zongbu_amount(
+saleid number,
+saleman varchar2(20),
+price number,
+saletime date,
+loc varchar2(40),
+update_time date
+);
+
+insert into beijing_amount values(1001,'lilei',1000.5,date'2020-9-21');
+insert into beijing_amount values(1002,'hanmeimei',756,date'2020-9-22');
+insert into shenzhen_amount values(3001,'lucy',866,date'2020-9-22');
+insert into shenzhen_amount values(3002,'toly',1200.8,date'2020-9-22');
+
+create or replace procedure all_sale_amount
+as
+begin
+  execute immediate 'truncate table zongbu_amount';
+  insert into zongbu_amount(saleid,saleman,price,saletime) select * from beijing_amount;
+  update zongbu_amount set loc='北京';
+  update zongbu_amount set update_time=sysdate;
+  commit;
+  insert into zongbu_amount(saleid,saleman,price,saletime) select * from shenzhen_amount;
+  update zongbu_amount set loc='深圳' where loc is null;
+  update zongbu_amount set update_time=sysdate where update_time is null;
+  commit;  
+end;
+
+call all_sale_amount();
+
+对比表格内容的句式：merge into
+基本语法：
+merge into 目标表名字 a 
+using (select 语句) b
+on (a.列1=b.列1 and a.列2=b.列2 ...)
+when matched then
+  update 语句
+when not matched then
+  insert 语句; 
+
+--增量更新表格数据  只更新新出现的数据
+create or replace procedure part_sale_amout
+as
+begin
+  merge into zongbu_amount a 
+  using (select beijing_amount.*,'北京' loc from beijing_amount union all 
+         select shenzhen_amount.*,'深圳' loc from shenzhen_amount) b
+  on (a.saleid=b.saleid and a.saleman=b.saleman and a.price=b.price and a.saletime=b.saletime)
+  when matched then
+    update set 
+      a.update_time=sysdate
+  when not matched then
+    insert (a.saleid,a.saleman,a.price,a.saletime,a.loc,a.update_time) 
+    values (b.saleid,b.saleman,b.price,b.saletime,b.loc,sysdate);
+end;
+
+call part_sale_amout();
+
+练习：编写一个新增用户的存储过程，过程有4个输入参数，分别是姓名、工作岗位、工资、部门编号，其余的数据都是自动生成的，例如：
+员工编号是上一个用户编号+1，mgr上级领导编号是同部门的MANAGER编号，奖金是工资的10%，入职时间是现在时间的年月日。
+create or replace procedure add_emp(v_ename varchar2,v_job varchar2,v_sal number,v_deptno number)
+as
+  v_empno number;
+  v_mgr number;
+  v_comm emp.comm%type;
+  v_hiredate date;
+begin
+  --获取编号
+  select max(empno) into v_empno from emp;
+  v_empno:=v_empno+1;
+  --获取mgr
+  select empno into v_mgr from emp where job='MANAGER' and deptno=v_deptno;
+  --奖金
+  v_comm:=v_sal*0.1;
+  --当前的年月日
+  v_hiredate:=to_date(to_char(sysdate,'yyyy-mm-dd'),'yyyy-mm-dd');
+  --插入数据
+  insert into emp values(v_empno,v_ename,v_job,v_mgr,v_hiredate,v_sal,v_comm,v_deptno);
+  commit;
+end;
+
+call add_emp('lilei','CLERK',1000,30);
+
+函数：将计算的过程封装起来，这个过程中的代码就是函数了  function
+函数一定有输入参数
+函数一定有return出去的返回值
+函数是放在sql语句中去进行使用的
+函数中不能去修改表的内容和表的结构，不能执行dml和ddl语句
+游标在函数中没有什么意义，因为一个函数只能return一次，没有办法为每一行单独的返回结果
+
+create or replace function 函数名字(参数 数据类型)
+return 返回值的数据类型
+as
+  声明部分;
+begin
+  执行部分;
+end;
+
+create or replace function sum_1(n1 number,n2 number)
+return number
+as
+  n3 number;
+begin
+  n3:=nvl(n1,0)+nvl(n2,0);
+  return n3;
+end;
+
+select sum_1(12*sal,comm) from emp;
+
+练习：写一个在最小和最大值之间随机整数的函数
+create or replace function int_random(m1 integer,m2 integer)
+return integer
+as
+  n number;
+begin
+  n:=round(dbms_random.value(m1,m2));
+  return n;
+end;
+
+练习：
+用函数随机N位长度的英文大小写字母
+create or replace function yanzhengma(m integer)
+return varchar2
+as
+  s varchar2(26):='qwertyuioplkjhgfdsazxcvbnm';
+  n varchar2(4);
+  yzm varchar2(4000);
+begin
+  for i in 1..m loop
+    n:=substr(s,round(dbms_random.value(1,26)),1);
+    if dbms_random.value(1,10)>5 then
+      n:=upper(n);
+    end if;
+    yzm:=concat(yzm,n);
+  end loop;
+  return yzm;
+end;
+
+触发器：当表格的数据或者结构发生了变化，触发另外的一个数据库的操作  trigger
+实时变更和同步表格的数据
+对表格的变更进行日志的记录
+用触发器禁止用户的某些操作
+
+触发器的大类型：前置触发器   后置触发器
+create or replace trigger 触发器名字
+before|after  insert or update or delete on 表名
+for each row
+begin
+  触发的执行语句;
+end;
+
+前置触发器：在操作表格之后，检查操作的数据是否合法
+create or replace trigger jinzhi_president
+before delete on emp
+for each row
+begin
+  if :old.job='PRESIDENT' then
+    raise_application_error(-20001,'不能删除老板！');
+  end if;
+end;
+
+练习：如果是添加新员工，员工的工资不能超过5000，如果是老员工，员工的每次工资更新不能超过原来工资的20%。
+create or replace trigger check_emp_sal
+before insert or update on emp
+for each row
+begin
+  if inserting then
+    if :new.sal>5000 then
+      raise_application_error(-20002,'新员工不能超过5000元！');
+    end if;
+  elsif updating then
+    if :new.sal>:old.sal*1.2 then
+      raise_application_error(-20003,'老员工涨幅不能超过20%！');
+    end if;
+  end if;
+end;
+
+练习：设置不同时间段对EMP表的禁止操作，星期一三五不能更新，星期二四六不能删除，星期天不能添加新数据。
+create or replace trigger check_emp_day
+before insert or update or delete on emp
+for each row
+begin
+  if inserting then
+    if to_char(sysdate,'day')='星期日' then
+      raise_application_error(-20000,'星期天不能新增数据');
+    end if;
+  elsif updating then
+    if to_char(sysdate,'day') in('星期一','星期三','星期五') then
+      raise_application_error(-20001,'奇数天不能更新数据');
+    end if;  
+  elsif deleting then
+    if to_char(sysdate,'day') in('星期二','星期四','星期六') then
+      raise_application_error(-20002,'偶数天不能删除数据');
+    end if;  end if;
+end;
+
+后置触发器：同步表格的数据；日志表内容的新增
+记录表格变更状态的日志表的后置触发器：
+create or replace trigger record_emp_logs
+after insert or update or delete on emp
+for each row
+begin
+  if inserting then
+    insert into emp_logs values(
+ :new.empno,:new.ename,:new.job,:new.mgr,:new.hiredate,:new.sal,:new.comm,:new.deptno,
+    ora_login_user,'新增数据',sysdate
+    );
+  elsif updating then
+    insert into emp_logs values(
+    :old.empno,:old.ename,:old.job,:old.mgr,:old.hiredate,:old.sal,:old.comm,:old.deptno,
+    ora_login_user,'更新前的数据',sysdate
+    );  
+    insert into emp_logs values(
+ :new.empno,:new.ename,:new.job,:new.mgr,:new.hiredate,:new.sal,:new.comm,:new.deptno,
+    ora_login_user,'更新后的数据',sysdate
+    );
+  elsif deleting then
+    insert into emp_logs values(
+    :old.empno,:old.ename,:old.job,:old.mgr,:old.hiredate,:old.sal,:old.comm,:old.deptno,
+    ora_login_user,'删除数据',sysdate
+    );
+  end if;
+end;
+
+表格数据的同步操作：
+create or replace trigger update_s_zongbu_amount
+after insert or delete or update on shenzhen_amount
+for each row
+begin
+  if inserting then
+    insert into zongbu_amount values(
+    :new.saleid,:new.saleman,:new.price,:new.saletime,'深圳',sysdate
+    );
+  elsif updating then
+    update zongbu_amount set saleid=:new.saleid,saleman=:new.saleman,
+    price=:new.price,saletime=:new.saletime
+    where saleid=:old.saleid and price=:old.price
+    and saletime=:old.saletime and saleman=:old.saleman;
+  elsif deleting then
+    delete from zongbu_amount where saleid=:old.saleid and price=:old.price
+    and saletime=:old.saletime;
+  end if;
+end;
+
+缓慢变化维，拉链表
+拉链表：记录了表格每一行数据每一次前后变更状态的表格
+拉链表中用来记录变更状态的列，叫做缓慢变化维
+缓慢变化维有三种记录方法：
+1.直接Update，这样最简洁但是体现不出变化的状态
+2.以列的方式记录最近的变更状态
+3.以行的方式记录每一次前后变更的状态
+
+先有一个拉链表的表结构
+create table teachers_lalian(
+tno varchar2(20),
+tname varchar2(20),
+start_time date,
+end_time date,
+status char(1)
+);
+
+用触发器填充拉链表的内容
+create or replace trigger t_lalian
+after insert or update or delete on teachers
+for each row
+begin
+  if inserting then
+    insert into teachers_lalian values(
+    :new.tno,:new.tname,sysdate,date'9999-12-31',0
+    );
+  elsif updating then
+    update teachers_lalian set end_time=sysdate,status=1
+    where tno=:old.tno and status=0;
+    insert into teachers_lalian values(
+    :new.tno,:new.tname,sysdate,date'9999-12-31',0
+    );
+  elsif deleting then
+    update teachers_lalian set end_time=sysdate,status=1
+    where tno=:old.tno and status=0;
+    insert into teachers_lalian values(
+    :old.tno,:old.tname,sysdate,sysdate,2
+    );
+  end if;
+end;
+
+
+练习：有语文表和数学表，将两个表的分数求出平均分，然后记录在汇总表里面。
+create table chinese_score(
+stuid number,
+course varchar2(20),
+score number
+);
+
+create table math_score(
+stuid number,
+course varchar2(20),
+score number
+);
+
+create table stu_score(
+stuid number,
+avg_score number
+);
+
+create or replace trigger avg_score
+after insert or update or delete on chinese_score
+for each row
+declare
+  c number;
+  v_score number;
+  s number;
+  v_stuid number;
+begin
+  if inserting then
+    select count(1) into c from math_score where stuid=:new.stuid;
+    if c=0 then
+      v_score:=:new.score/2;
+    else
+      select score into s from math_score where stuid=:new.stuid;
+      v_score:=(:new.score+s)/2;
+    end if;
+  elsif updating then
+    select count(1) into c from math_score where stuid=:old.stuid;
+    if c=0 then
+      v_score:=:new.score/2;
+    else
+      select score into s from math_score where stuid=:old.stuid;
+      v_score:=(:new.score+s)/2;
+    end if;  
+  elsif deleting then
+    select count(1) into c from math_score where stuid=:old.stuid;
+    if c=0 then
+      v_score:=0;
+    else
+      select score into s from math_score where stuid=:old.stuid;
+      v_score:=s/2;
+    end if;
+  end if;
+
+  select count(1) into c from stu_score where stuid=:new.stuid or stuid=:old.stuid;
+  if c=0 then
+    insert into stu_score values(:new.stuid,v_score);
+  else
+    update stu_score set avg_score=v_score where stuid=:old.stuid or stuid=:new.stuid;
+  end if;
+
+end;
+
+
+使用触发器去监控表结构的修改   DDL
+create table emp_ddl_logs(
+operate_time date,  --操作时间
+object_type varchar2(50),   --操作对象的类型  
+operate_user varchar2(50),  --谁在操作
+operation varchar2(50),  --什么样的操作
+object_name varchar2(50)  --对象的名字
+);
+
+create or replace trigger tri_emp_ddl
+after ddl on database
+begin
+  if ora_dict_obj_name='EMP' then   
+    insert into emp_ddl_logs values(
+    sysdate,ora_dict_obj_type,ora_login_user,ora_sysevent,ora_dict_obj_name
+    );   
+  end if;
+end;
+
+
+包：用来统一管理某个模块下面的所有的存储过程、函数、变量等信息。
+先创建包规范，根据规范创建包体
+包规范：声明和定义一个包有什么大概的结构
+create or replace package 包名
+as
+  变量 数据类型:=值;
+  procedure 过程名(输入参数 in 数据类型,输出参数 out 数据类型);
+  function 函数名(输入参数 数据类型) return 返回的数据类型;
+end 包名;
+
+create or replace package pkg_emp_dept
+as
+  --函数的声明
+  function dept_avg_sal(v_deptno number) return number;
+  --过程的声明
+  procedure add_dept(v_deptno number,v_dname varchar2,v_loc varchar2);
+end pkg_emp_dept;
+
+包体：定义包里面每一个代码块的具体内容，包体的名字和包规范需要一致
+create or replace package body 包名
+as
+  procedure 过程名(输入参数 in 数据类型,输出参数 out 数据类型)
+  as
+      声明部分
+  begin
+      执行部分
+  end;
+
+  function 函数名(输入参数 数据类型) return 返回的数据类型;
+  as
+      声明部分
+  begin
+      执行部分
+  end;
+
+end 包名;
+
+定义包体的内容
+create or replace package pkg_emp_dept
+as
+  --函数的声明
+  function dept_avg_sal(v_deptno number) return number;
+  --过程的声明
+  procedure add_dept(v_deptno number,v_dname varchar2,v_loc varchar2);
+end pkg_emp_dept;
+
+create or replace package body pkg_emp_dept
+as
+  --函数的声明
+  function dept_avg_sal(v_deptno number) return number
+  as
+    avg_sal number;
+  begin
+    select avg(sal) into avg_sal from emp where deptno=v_deptno;
+    if avg_sal is not null then
+      return avg_sal;
+    else
+      return 0;
+    end if;
+  end;
+
+  --过程的声明
+  procedure add_dept(v_deptno number,v_dname varchar2,v_loc varchar2)
+  as
+    c number;
+  begin
+    select count(1) into c from dept where deptno=v_deptno;
+    if c=0 then
+      insert into dept values(v_deptno,v_dname,v_loc);
+      commit;
+    else
+      raise_application_error(-20000,'部门已经存在');
+    end if;
+  end;
+end pkg_emp_dept;
+
+
+练习：
+函数练习：
+创建一个自定义函数，函数的作用是，输入一个字符串，和输入一个单个字符，返回这个字符在字符串中的位置（有多个时只返回第一个），没有存在则返回-1
+create or replace function findstr(str varchar2,s varchar2)
+return number
+as
+begin
+  for i in 1..length(str) loop
+    if substr(str,i,1)=s then
+      return i;
+    end if;
+  end loop;
+  return -1;
+end;
+
+select findstr('helloworld','a') from dual;
+
+存储过程练习：
+有一个保存部门每月工资总和的表格
+create table dept_sum_sal(
+deptno number,
+sum_sal number
+);
+使用merge into对比更新的方式，运行过程时同步dept_sum_sal的数据
+create or replace procedure get_dept_sum
+as
+begin
+  merge into dept_sum_sal a
+  using (select deptno,sum(sal) sum_sal from emp group by deptno) b
+  on (a.deptno=b.deptno)
+  when matched then
+    update set
+      a.sum_sal=b.sum_sal
+  when not matched then
+    insert (a.deptno,a.sum_sal)
+    values (b.deptno,b.sum_sal);
+  commit;
+end;
+
+call add_emp2('LILY','CLERK',600,30);
+call get_dept_sum();
+
+包的练习：
+将上面两个练习的内容，使用包进行保存。
+create or replace package pro_func_emp
+as
+  function findstr(str varchar2,s varchar2) return number;
+  procedure get_dept_sum;
+end pro_func_emp;
+
+create or replace package body pro_func_emp
+as
+  function findstr(str varchar2,s varchar2) return number
+  as
+  begin
+  for i in 1..length(str) loop
+    if substr(str,i,1)=s then
+      return i;
+    end if;
+  end loop;
+  return -1;  
+  end;
+
+  procedure get_dept_sum
+  as
+  begin
+  merge into dept_sum_sal a
+  using (select deptno,sum(sal) sum_sal from emp group by deptno) b
+  on (a.deptno=b.deptno)
+  when matched then
+    update set
+      a.sum_sal=b.sum_sal
+  when not matched then
+    insert (a.deptno,a.sum_sal)
+    values (b.deptno,b.sum_sal);
+  commit;  
+  end;
+end pro_func_emp;
+
+with as语句：
+with 别名 as (select 查询语句)
+select 查询别名里面的语句; 
+
+--查询每个部门里面工资排第一的员工信息，包含所在的部门名称
+with a as
+(select emp.*,
+       row_number() over(partition by deptno order by sal desc) r
+  from emp)
+select b.*,dname from (select * from a where r=1) b join dept c on b.deptno=c.deptno;
+
+练习：
+使用with as语句，查询出每个部门里面工资高于自己所在部门平均工资的员工姓名和所在部门编号
+with avg_sal as (select deptno,avg(sal) s from emp group by deptno)
+select ename,emp.deptno from avg_sal join emp on avg_sal.deptno=emp.deptno
+where emp.sal>avg_sal.s;
+
+
+
+
+
+
+create table min_record(
+tid number,
+tname varchar2(10));
+insert into min_record values(1,'a');
+insert into min_record values(2,'b');
+insert into min_record values(3,'b');
+insert into min_record values(6,'b');
+insert into min_record values(8,'c');
+insert into min_record values(3,'a');
+insert into min_record values(3,'c');
+insert into min_record values(5,'c');
+commit;
+
+答案：
+delete from min_record where rowid in
+(select rowid from
+(select min_record.*,
+       row_number() over(partition by tname order by tid) r
+  from min_record)
+ where r!=1);
+
+
+
+上图笔试第15题：
+create table r(
+c1 date,
+c2 number
+);
+insert into r values(date'2005-1-1',1);
+insert into r values(date'2005-1-1',3);
+insert into r values(date'2005-1-2',5);
+commit;
+答案：
+select nvl(to_char(c1,'yyyy-mm-dd'),'合并'),sum(c2) from r group by rollup(c1);
+
+
+上图笔试第16题：
+CREATE TABLE NBA (TEAM VARCHAR2(20),Y NUMBER(4));
+INSERT INTO NBA VALUES('活塞',1990);
+INSERT INTO NBA VALUES('公牛',1991);
+INSERT INTO NBA VALUES('公牛',1992);
+INSERT INTO NBA VALUES('公牛',1993);
+INSERT INTO NBA VALUES('火箭',1994);
+INSERT INTO NBA VALUES('火箭',1995);
+INSERT INTO NBA VALUES('公牛',1996);
+INSERT INTO NBA VALUES('公牛',1997);
+INSERT INTO NBA VALUES('公牛',1998);
+INSERT INTO NBA VALUES('马刺',1999);
+INSERT INTO NBA VALUES('湖人',2000);
+INSERT INTO NBA VALUES('湖人',2001);
+INSERT INTO NBA VALUES('湖人',2002);
+INSERT INTO NBA VALUES('马刺',2003);
+INSERT INTO NBA VALUES('活塞',2004);
+INSERT INTO NBA VALUES('马刺',2005);
+INSERT INTO NBA VALUES('热火',2006);
+INSERT INTO NBA VALUES('马刺',2007);
+INSERT INTO NBA VALUES('凯尔特人',2008);
+INSERT INTO NBA VALUES('湖人',2009);
+INSERT INTO NBA VALUES('湖人',2010);
+COMMIT;
+答案：
+select team,min(y) b,max(y) e from
+(select nba.*,
+       y-(row_number() over(partition by team order by y)) r
+  from nba) a
+ group by team,r
+ having count(1)>1
+ order by b asc;
+
+
+在oracle里面，跨数据库获取数据，使用数据库链接：
+create public database link 数据库链接名字
+connect to 对方的用户名 identified by "对方的密码"
+using '对方数据库的TNS信息';
+
+create public database link teacher_link
+connect to bigdata identified by "111111"
+using '(DESCRIPTION =
+    (ADDRESS = (PROTOCOL = TCP)(HOST = WIN-1QHBNJOO802)(PORT = 1521))
+    (CONNECT_DATA =
+      (SERVER = DEDICATED)
+      (SERVICE_NAME = orcl)
+    )
+  )';
+
+select * from 表名@链接名;
+
+个人贷款项目需要的6个表格：
+--银行分行信息表
+create table bank_info(
+  bank_id number primary key, --银行id
+  bank_addr varchar2(100)  --银行所在城市
+);
+
+--客户信息表
+create table customer_info(
+  cus_id number primary key,   --客户id
+  cus_name varchar2(20),       --客户名字
+  cus_type varchar2(50),         --证件类型
+  cus_number varchar2(50)    --证件号码
+);
+
+--客户余额表
+create table balance_info(
+  bal_id varchar2(50) primary key,  --借据号
+  contract_id varchar2(50),         --合同编号
+  petition_id varchar2(50),         --申请编号 
+  loan_amount number(11,2),   --贷款金额
+  loan_balance number(11,2),  --贷款余额
+  overdue number              --逾期天数
+);
+
+--客户贷款合同表
+create table contract_info(
+  contract_id varchar2(50) primary key,    --合同编号
+  petition_id varchar2(50),   --申请编号
+  cus_id number,                --客户id
+  amount number,              --授信金额
+  amount_date date            --授信日期
+);
+
+--客户贷款申请表
+create table petition_info(
+  petition_id varchar2(50) primary key,       --申请编号
+  petition_date date,         --申请日期
+  product varchar2(50),       --产品名称
+  status char(1),             --申请状态
+  stat_mod_date date,         --状态最新变更日期
+  cus_id number,              --客户编号
+  bank_id number           --银行编号
+);
+
+--贷款类型
+create table product_type(
+ tid number,                   --贷款类型编号
+ tname varchar2(20)       --贷款类型名称
+);
+
+创建一个表格，存储的是
+20-29
+30-39
+40-49
+其他
+四个不同年龄段申请最多的贷款类型、和平均申请的贷款金额。
+create or replace procedure pro_all_agerange
+as
+begin
+  execute immediate 'truncate table age_range_info';
+  insert into age_range_info 
+  select a.age_range,tname,avg_amount from
+(select distinct age_range,tname from
+(select e.*,
+       max(pro_num) over(partition by age_range) m
+  from
+(select age_range,tname,
+       count(1) over(partition by age_range,tname) pro_num
+  from
+(select a.*,
+       case 
+         when age between 20 and 29 then '[20-29]'
+         when age between 30 and 39 then '[30-39]'
+         when age between 40 and 49 then '[40-49]'
+         else 'others'
+       end age_range 
+  from
+(select cus_id,floor(months_between(sysdate,to_date(substr(cus_number,7,8),'yyyymmdd'))/12) age 
+  from customer_info) a) c
+join petition_info a on c.cus_id=a.cus_id
+join product_type b on a.product=b.tid) e)
+ where pro_num=m) a
+
+join
+
+(select age_range,round(avg(amount),2) avg_amount
+  from
+(select * from
+(select a.*,
+       case 
+         when age between 20 and 29 then '[20-29]'
+         when age between 30 and 39 then '[30-39]'
+         when age between 40 and 49 then '[40-49]'
+         else 'others'
+       end age_range 
+  from
+(select cus_id,floor(months_between(sysdate,to_date(substr(cus_number,7,8),'yyyymmdd'))/12) age 
+  from customer_info) a) a
+  join contract_info b on a.cus_id=b.cus_id) c
+  group by age_range) b
+  on a.age_range=b.age_range;
+
+  commit;
+end;
+
+select * from age_range_info;
+call pro_all_agerange();
+
+写出两个存储过程，一个是全量更新这个表格的存储过程，
+还有一个是使用merge into更新表格的存储过程。
+create or replace procedure pro_merge_agerange
+as
+begin
+  merge into age_range_info a
+  using (select a.age_range,tname,avg_amount from
+(select distinct age_range,tname from
+(select e.*,
+       max(pro_num) over(partition by age_range) m
+  from
+(select age_range,tname,
+       count(1) over(partition by age_range,tname) pro_num
+  from
+(select a.*,
+       case 
+         when age between 20 and 29 then '[20-29]'
+         when age between 30 and 39 then '[30-39]'
+         when age between 40 and 49 then '[40-49]'
+         else 'others'
+       end age_range 
+  from
+(select cus_id,floor(months_between(sysdate,to_date(substr(cus_number,7,8),'yyyymmdd'))/12) age 
+  from customer_info) a) c
+join petition_info a on c.cus_id=a.cus_id
+join product_type b on a.product=b.tid) e)
+ where pro_num=m) a
+
+join
+
+(select age_range,round(avg(amount),2) avg_amount
+  from
+(select * from
+(select a.*,
+       case 
+         when age between 20 and 29 then '[20-29]'
+         when age between 30 and 39 then '[30-39]'
+         when age between 40 and 49 then '[40-49]'
+         else 'others'
+       end age_range 
+  from
+(select cus_id,floor(months_between(sysdate,to_date(substr(cus_number,7,8),'yyyymmdd'))/12) age 
+  from customer_info) a) a
+  join contract_info b on a.cus_id=b.cus_id) c
+  group by age_range) b
+  on a.age_range=b.age_range) b
+
+  on (a.age_range=b.age_range)
+  when matched then
+    update set
+    a.tname=b.tname,
+    a.avg_amount=b.avg_amount
+  when not matched then
+    insert (a.age_range,a.tname,a.avg_amount) 
+    values (b.age_range,b.tname,b.avg_amount);
+  commit;
+end;
+
+
+年龄段  贷款类型的名字  平均申请贷款金额，保留两位小数
+select a.age_range,tname,avg_amount from
+(select distinct age_range,tname from
+(select e.*,
+       max(pro_num) over(partition by age_range) m
+  from
+(select age_range,tname,
+       count(1) over(partition by age_range,tname) pro_num
+  from
+(select a.*,
+       case 
+         when age between 20 and 29 then '[20-29]'
+         when age between 30 and 39 then '[30-39]'
+         when age between 40 and 49 then '[40-49]'
+         else 'others'
+       end age_range 
+  from
+(select cus_id,floor(months_between(sysdate,to_date(substr(cus_number,7,8),'yyyymmdd'))/12) age 
+  from customer_info) a) c
+join petition_info a on c.cus_id=a.cus_id
+join product_type b on a.product=b.tid) e)
+ where pro_num=m) a
+
+join
+
+(select age_range,round(avg(amount),2) avg_amount
+  from
+(select * from
+(select a.*,
+       case 
+         when age between 20 and 29 then '[20-29]'
+         when age between 30 and 39 then '[30-39]'
+         when age between 40 and 49 then '[40-49]'
+         else 'others'
+       end age_range 
+  from
+(select cus_id,floor(months_between(sysdate,to_date(substr(cus_number,7,8),'yyyymmdd'))/12) age 
+  from customer_info) a) a
+  join contract_info b on a.cus_id=b.cus_id) c
+  group by age_range) b
+  on a.age_range=b.age_range;
+
+
+统计出下面的数据：
+每个银行的网点（银行分行），贷款平均审核通过时间，审核通过率，总贷款金额，未还款金额，坏账比例(逾期超过180天算坏账)，
+将银行id（number）,贷款平均审核通过时间(number)，审核通过率(number)，总贷款金额(number)，未还款金额(number)，坏账比例(number)写入到一张维度表中
+
+bank_balance_info_t	银行分行贷款维度表				
+银行网点id	贷款平均通过时间(天)	审核通过率	总贷款金额(实际)	未还款金额	
+坏账比例(超过180天没有还款的金额总数/所有的未还款总数)
+create table bank_balance_info_t(
+bank_id number,
+avg_day number,
+tongguolv number,
+loan_amount number,
+loan_balance number,
+bad_pert number
+);
+
+create or replace procedure pro_all_bank
+as
+begin
+  execute immediate 'truncate table bank_balance_info_t';
+  insert into bank_balance_info_t
+    select distinct a.bank_id,avg_day,tongguolv,zongshu,weihuan,round(yuqi,2) from
+    --贷款平均通过时间(天)
+    (select bank_id,ceil(avg(d)) avg_day from
+    (select bank_id,(stat_mod_date-petition_date) d from petition_info where status=1)
+     group by bank_id) a
+    join
+    --审核通过率
+    (select * from
+    (select bank_id,
+           round((sum(status) over(partition by bank_id))/(count(1) over(partition by bank_id)),2) tongguolv
+      from petition_info)
+     group by bank_id,tongguolv) b
+     on a.bank_id=b.bank_id
+    join
+    --总贷款金额(实际)	未还款金额	
+    (select a.bank_id,zongshu,weihuan,huai/weihuan yuqi from
+    (select a.*,
+           sum(loan_amount) over(partition by bank_id) zongshu,
+           sum(loan_balance) over(partition by bank_id) weihuan
+      from
+    (select * from balance_info a join petition_info b on a.petition_id=b.petition_id) a) a
+
+    join
+    --坏账比例(超过180天没有还款的金额总数/所有的未还款总数)
+    (select bank_id,sum(loan_balance) huai from balance_info a join petition_info b on a.petition_id=b.petition_id
+    where overdue>180
+    group by bank_id) b
+    on a.bank_id=b.bank_id ) c
+    on c.bank_id=a.bank_id
+    order by a.bank_id;
+    commit;
+end;
+
+select * from bank_balance_info_t;
+call pro_all_bank();
+
+
+
+
+
+
+create table tb(
+t date,
+c varchar2(10),
+d varchar2(10)
+);
+
+insert into tb values(date'2010-01-01','8%','10%');
+insert into tb values(date'2011-01-01','5%','7%');
+insert into tb values(date'2012-01-01','5%','7%');
+insert into tb values(date'2012-10-31','5%','6%');
+insert into tb values(date'2013-01-01','5%','6%');
+insert into tb values(date'2013-03-31','8%','9%');
+insert into tb values(date'2013-09-01','8%','10%');
+insert into tb values(date'2014-01-01','8%','9%');
+insert into tb values(date'2015-01-01','6%','9%');
+commit;
+答案：
+with a as(
+select * from tb where rowid in
+(select min(rowid) from
+(select t,c,d,t3-t2 zu
+  from
+(select tb.*,
+       row_number() over(partition by c,d order by t) t2,
+       row_number() over(order by t) t3
+  from tb) a) b
+ group by c,d,zu) order by t)
+
+select decode(t,date'2010-01-01',date'0001-01-01',t) t,
+       nvl(lead(t) over(order by t)-1,date'9999-12-31') t2,
+       c,d
+  from a;
+
+
+update students_3 set gender=case when gender='M' then '0'
+                                  when gender='F' then '1'  end;
+select gender,count(1) from students_3 where birthday>date'1995-5-1'    
+group by gender;  
+
+create table chengji2(
+xingming varchar2(20),
+xueke varchar2(20),
+fenshu number
+); 
+
+insert into chengji2 values('zhangsan','yuwen',81);
+insert into chengji2 values('zhangsan','shuxue',75);
+insert into chengji2 values('lisi','yuwen',76);
+insert into chengji2 values('lisi','shuxue',90);
+insert into chengji2 values('wangwu','yuwen',81);
+insert into chengji2 values('wangwu','shuxue',100);
+
+select xingming from chengji2 group by xingming
+having min(fenshu)>80;
+
+select * from
+(select chengji2.*,
+       avg(fenshu) over(partition by xueke) a
+  from chengji2)
+ where fenshu>a;
+
+select * from chengji2
+pivot(max(fenshu) for xueke in('yuwen','shuxue'));
+
+select * from
+(select xingming,
+       lag(yuwen) over(partition by xingming order by rownum) yuwen,
+       shuxue
+  from
+(select xingming,
+       case when xueke='yuwen' then fenshu end yuwen,
+       case when xueke='shuxue' then fenshu end shuxue
+  from chengji2))
+ where yuwen is not null;
+
+-------------------------------------
+select distinct tname from xuesheng a join xuanke b on a.xuehao=b.xuehao
+join kecheng c on c.kehao=b.kehao
+where xingming like 'wang%'
+order by tname;
+
+select keming,count(b.kehao) from kecheng a join xuanke b on a.kehao=b.kehao
+group by keming having count(b.kehao)=(
+select count(1) from xuesheng
+);
+
+select a.xingming,count(b.kehao) from xuesheng a 
+join xuanke b on a.xuehao=b.xuehao
+group by a.xuehao,a.xingming
+having count(b.kehao)<4;
+
+select a.xingming from xuesheng a 
+join xuanke b on a.xuehao=b.xuehao
+group by a.xuehao,a.xingming
+having count(b.kehao)<3
+intersect
+select xingming from xuesheng where xingming not in
+(select a.xingming from xuesheng a join xuanke b on a.xuehao=b.xuehao
+join kecheng c on c.kehao=b.kehao
+where tname='刘老师');
+
+-------------------------------------------------
+select * from t_stu where s_age between 18 and 20 and s_sex='女' or s_sex is null
+order by s_age desc;
+
+select c_name,s_name,s_sex,s_money||'元' from t_stu a join t_class b on a.c_id=b.c_id
+order by c_id,s_name;
+
+select c_name,count(1) from t_stu a join t_class b on a.c_id=b.c_id
+group by c_name having count(1)>=2
+order by count(1) desc;
+
+select s_sex,count(1) from
+(select s_id,nvl(s_sex,'男') s_sex from t_stu)
+group by s_sex;
+-------------------------------------------------
+select n1,n2 from
+(select b.*,
+       row_number() over(partition by c order by n1) r
+  from
+(select n1,n2,c1*c2 c from
+(select a.*,
+       case when n1='a' then 2 
+            when n1='b' then 3
+            when n1='c' then 4
+            when n1='d' then 5 end c1,
+       case when n2='a' then 2 
+            when n2='b' then 3
+            when n2='c' then 4
+            when n2='d' then 5 end c2
+  from
+(select a.name n1,b.name n2 from team a join team b on 1=1 and a.name!=b.name) a)) b)
+ where r=1;
+
+
+数据库的导入和导出：dmp格式（plsql工具里面的exp.exe工具）和sql格式
+----------
+select * from emp where sal>all(
+--找出工资最高的人所在的部门的平均工资
+(select avg(sal) from emp where deptno=
+(select deptno from
+(select emp.*,
+       max(sal) over() ma
+  from emp )
+ where sal=ma)),
+----找出工资最低的人所在的部门的平均工资
+(select avg(sal) from emp where deptno=
+(select deptno from
+(select emp.*,
+       min(sal) over() mi
+  from emp )
+ where sal=mi)),
+--找出最高和最低的两个人所在的部门的平均工资
+(select avg(sal) from emp where deptno=
+(select deptno from
+(select emp.*,
+       max(sal) over() ma
+  from emp )
+ where sal=ma)
+ or deptno=
+(select deptno from
+(select emp.*,
+       min(sal) over() mi
+  from emp )
+ where sal=mi)));
+
+冷备份：将数据库关闭之后，对数据库里面的数据文件、控制文件等进行备份
+1.在cmd窗口输入sqlplus进行数据库的命令行模式
+2.输入 system/as sysdba，输入密码
+3.获取数据文件（DBF）、控制文件（CTL）在电脑上的位置
+select name from v$datafile;
+位置   C:\APP\ZX\ORADATA\ORCL\
+select name from v$controlfile;
+位置   C:\APP\ZX\ORADATA\ORCL\
+4.以DBA的身份连接和关闭数据库
+conn/as sysdba;
+shutdown normal;
+5.将所有的数据文件、控制文件复制一份保存在硬盘的其他位置
+copy   C:\APP\ZX\ORADATA\ORCL\*.dbf   C:\bak_dbf
+copy   C:\APP\ZX\ORADATA\ORCL\*.ctl    C:\bak_ctl
+
+热备份：在数据库正在运行的时候，对数据进行备份，采用archive log mode方式进行备份
+1.查看数据库是否是archive log的模式
+archive log list;
+2.修改数据库为归档模式
+先关闭数据库：shutdown immediate
+启动数据库：startup mount
+alter database archivelog;
+3.打开数据库
+alter database open;
+4.打开归档的开关
+alter system set log_archive_start=true scope=spfile;
+5.数据的备份位置
+
+冷热的优缺点：
+冷备份：
+优点--备份和恢复比较迅速，维护成本低
+缺点--需要关闭服务器，只能备份某个时间点的数据
+热备份：
+优点--理论上可以直接回溯到服务器上一秒的数据，备份更加精确
+缺点--需要占用更多的服务器资源，需要很大的空间去存储归档文件
 
 ## 函数
 
