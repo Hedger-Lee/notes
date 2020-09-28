@@ -1117,6 +1117,10 @@ when not matched then
 
 ### 2.增量更新
 
+> on  条件满足，那么说明已经存在该条数据，只需要更新即可
+>
+> 不满足说明，该条数据不存在，需要插入数据
+
 ```sql
 --增量更新表格数据  只更新新出现的数据
 create or replace procedure part_sale_amout

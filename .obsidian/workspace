@@ -1,0 +1,76 @@
+{
+  "main": {
+    "id": "db62402278337d48",
+    "type": "split",
+    "children": [
+      {
+        "id": "32df38bffd5b2654",
+        "type": "leaf",
+        "active": true,
+        "state": {
+          "type": "empty",
+          "state": {}
+        }
+      }
+    ],
+    "direction": "vertical"
+  },
+  "left": {
+    "id": "7471676f79accc76",
+    "type": "split",
+    "children": [
+      {
+        "id": "396ea0bd42b56e1b",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "a36ef3e747a882d1",
+            "type": "leaf",
+            "state": {
+              "type": "file-explorer",
+              "state": {}
+            }
+          },
+          {
+            "id": "b635054837b908de",
+            "type": "leaf",
+            "state": {
+              "type": "search",
+              "state": {
+                "query": ""
+              }
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300
+  },
+  "right": {
+    "id": "829eace885eebd8c",
+    "type": "split",
+    "children": [
+      {
+        "id": "4cc8c014df4e3892",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "8eaa17b44091c275",
+            "type": "leaf",
+            "state": {
+              "type": "backlink",
+              "state": {}
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300,
+    "collapsed": true
+  },
+  "lastOpenFiles": [
+    "数据库的概念.md"
+  ]
+}
