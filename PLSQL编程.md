@@ -836,6 +836,8 @@ begin
 end;
 ```
 
+```sql
+--创建存储过程
 create or replace procedure beifen_table
 as
   cursor m is select * from user_tables where table_name like 'EMP%';
@@ -847,24 +849,37 @@ begin
      execute immediate s; 
   end loop;
 end;
+```
 
+### 建表权限
+
+```sql
 --在存储过程里面创建表，需要下面这个特殊的权限
 grant create any table to bigdata;
 
 --运行存储过程里面的代码
 call beifen_table();
+```
 
-存储过程包含了传入的参数  in  和传出的参数  out
+### 存储过程的传入和传出参数
+
+> 存储过程包含了传入的参数  in  和传出的参数  out
+
+```sql
 create or replace procedure beifen_u_table(tn in varchar2)
 as
 begin
   execute immediate 
   'create table '||tn||'_'||to_char(sysdate,'yyyymmdd')||' as select * from '||tn;
 end;
-
+--只有传入参数，直接使用call调用即可
+--传入参数的in可以省略，默认为传入参数
 call beifen_u_table('EMP_1');
+```
 
-如果存储过程里面有输出的Out参数，就需要用declare匿名块去运行
+```sql
+--如果存储过程里面有输出的Out参数，就需要用declare匿名块去运行
+--创建存储过程
 create or replace procedure sum_(n1 in number,n2 in number,s1 out number,s2 out number)
 as
 begin
@@ -872,6 +887,7 @@ begin
   s2:=n1-n2;
 end;
 
+--运行存储过程需要declare匿名块
 declare
   a number;
   b number;
@@ -880,8 +896,12 @@ begin
   dbms_output.put_line(a);
   dbms_output.put_line(b);  
 end;
+```
 
-使用存储过程自动创建分区表中的分区
+### 自动创建分区
+
+```sql
+--使用存储过程自动创建分区表中的分区
 create or replace procedure add_user_part
 as
   c number;
@@ -899,16 +919,20 @@ begin
 end;
 
 call add_user_part();
+```
 
-异常处理
-1.系统预定义异常  21种
-返回行数太多的异常  too_many_rows
-数字类型转换错误  invalid_number
-除数为0错误  zero_divide
-游标还没有打开就进行抓取   invalid_cursor
-游标重复打开   cursor_already_open
-值操作的错误  value_error
-...
+## 异常处理
+
+### 1.系统预定义异常(21种)
+
+- 返回行数太多的异常  too_many_rows
+- 数字类型转换错误  invalid_number
+- 除数为0错误  zero_divide
+- 游标还没有打开就进行抓取   invalid_cursor
+- 游标重复打开   cursor_already_open
+- 值操作的错误  value_error
+
+```sql
 create or replace procedure pro_t
 as
   v_ename varchar2(20);
@@ -924,7 +948,9 @@ exception
 end;
 
 call pro_t();
+```
 
+```sql
 --创建一个错误日志表格
 create table error_logs(
 pro_name varchar2(100),
@@ -932,10 +958,16 @@ operte_time date,
 sql_code varchar2(20),
 sql_message varchar2(500)
 );
+```
 
-2.系统非预定义异常  系统中有定义错误的编码，但是这个错误是没有名字的
-名字需要自己在初始化错误的时候去定义它
-如果需要单独处理非预定义的错误，就需要给错误编码设置名称
+### 2.系统非预定义异常  
+
+> 系统中有定义错误的编码，但是这个错误是没有名字的
+> 名字需要自己在初始化错误的时候去定义它
+
+> 如果需要单独处理非预定义的错误，就需要给错误编码设置名称
+
+```sql
 --声明部分
 错误名字  exception;
 pragma exception_init(错误名字, 错误编码);
@@ -943,26 +975,31 @@ pragma exception_init(错误名字, 错误编码);
 exception
   when 错误名字 then
       错误的处理;
+```
 
+```sql
 create or replace procedure pro_t2
 as
   --声明一个存储错误的变量
   fo_error exception;
   --初始化这个错误，把名字和错误代码绑定在一起
   pragma exception_init(fo_error,-2291);
-
 begin
   update scott.emp set deptno=50 where ename='SMITH';
   commit;
-
 exception
   when fo_error then
     dbms_output.put_line('主表中没有这个部门'); 
 end;
+```
 
-如果是统一的处理各种错误和异常，就不需要去初始化名字。
+如果是统一的处理各种错误和异常(`when others then`)，就不需要去初始化名字。
 
-3.自定义异常  不是语法的错误，这是自己指定的逻辑上禁止的部分
+### 3.自定义异常 
+
+> 不是语法的错误，这是自己指定的逻辑上禁止的部分
+
+```sql
 create or replace procedure pro_t3(v_empno number,v_sal number)
 as
 begin
@@ -975,8 +1012,11 @@ begin
 end;
 
 call pro_t3(7369,5002);
+```
 
-将存储过程运行中的错误保存到错误日志表中
+```sql
+--将存储过程运行中的错误保存到错误日志表中
+
 --准备一个错误日志表
 create table record_errors(
 pro_name varchar2(50),
@@ -1008,8 +1048,13 @@ exception
     );
     commit;
 end;
+```
 
-如何更新表格的内容：
+## 表格更新
+
+### 1.全量更新
+
+```sql
 --全量更新表格  将表格的内容全部删除，重新添加所有的数据
 create table beijing_amount(
 saleid number,
@@ -1054,7 +1099,11 @@ begin
 end;
 
 call all_sale_amount();
+```
 
+### 表格内容的对比
+
+```sql
 对比表格内容的句式：merge into
 基本语法：
 merge into 目标表名字 a 
@@ -1064,7 +1113,11 @@ when matched then
   update 语句
 when not matched then
   insert 语句; 
+```
 
+### 2.增量更新
+
+```sql
 --增量更新表格数据  只更新新出现的数据
 create or replace procedure part_sale_amout
 as
@@ -1082,9 +1135,12 @@ begin
 end;
 
 call part_sale_amout();
+```
 
-练习：编写一个新增用户的存储过程，过程有4个输入参数，分别是姓名、工作岗位、工资、部门编号，其余的数据都是自动生成的，例如：
-员工编号是上一个用户编号+1，mgr上级领导编号是同部门的MANAGER编号，奖金是工资的10%，入职时间是现在时间的年月日。
+```sql
+--练习：编写一个新增用户的存储过程，过程有4个输入参数，分别是姓名、工作岗位、工资、部门编号，其余的数据都是自动生成的，
+--例如：员工编号是上一个用户编号+1，mgr上级领导编号是同部门的MANAGER编号，奖金是工资的10%，入职时间是现在时间的年月日。
+
 create or replace procedure add_emp(v_ename varchar2,v_job varchar2,v_sal number,v_deptno number)
 as
   v_empno number;
@@ -1107,14 +1163,19 @@ begin
 end;
 
 call add_emp('lilei','CLERK',1000,30);
+```
 
-函数：将计算的过程封装起来，这个过程中的代码就是函数了  function
-函数一定有输入参数
-函数一定有return出去的返回值
-函数是放在sql语句中去进行使用的
-函数中不能去修改表的内容和表的结构，不能执行dml和ddl语句
-游标在函数中没有什么意义，因为一个函数只能return一次，没有办法为每一行单独的返回结果
+## 函数
 
+> 函数：将计算的过程封装起来，这个过程中的代码就是函数了  function
+>
+> 1. 函数一定有输入参数
+> 2. 函数一定有return出去的返回值
+> 3. 函数是放在sql语句中去进行使用的
+> 4. 函数中不能去修改表的内容和表的结构，不能执行dml和ddl语句
+> 5. 游标在函数中没有什么意义，因为一个函数只能return一次，没有办法为每一行单独的返回结果
+
+```sql
 create or replace function 函数名字(参数 数据类型)
 return 返回值的数据类型
 as
@@ -1122,7 +1183,9 @@ as
 begin
   执行部分;
 end;
+```
 
+```sql
 create or replace function sum_1(n1 number,n2 number)
 return number
 as
@@ -1133,8 +1196,10 @@ begin
 end;
 
 select sum_1(12*sal,comm) from emp;
+```
 
-练习：写一个在最小和最大值之间随机整数的函数
+```sql
+--练习：写一个在最小和最大值之间随机整数的函数
 create or replace function int_random(m1 integer,m2 integer)
 return integer
 as
@@ -1144,8 +1209,7 @@ begin
   return n;
 end;
 
-练习：
-用函数随机N位长度的英文大小写字母
+--练习：用函数随机N位长度的英文大小写字母
 create or replace function yanzhengma(m integer)
 return varchar2
 as
@@ -1162,21 +1226,38 @@ begin
   end loop;
   return yzm;
 end;
+```
 
-触发器：当表格的数据或者结构发生了变化，触发另外的一个数据库的操作  trigger
-实时变更和同步表格的数据
-对表格的变更进行日志的记录
-用触发器禁止用户的某些操作
+### 随机函数的用法
 
-触发器的大类型：前置触发器   后置触发器
+`dbms_random.value(a,b)`
+
+
+
+## 触发器
+
+> 触发器：当表格的数据或者结构发生了变化，触发另外的一个数据库的操作  trigger
+>
+> 1. 实时变更和同步表格的数据
+> 2. 对表格的变更进行日志的记录
+> 3. 用触发器禁止用户的某些操作
+>
+> 触发器的大类型：前置触发器   后置触发器
+
+```sql
 create or replace trigger 触发器名字
 before|after  insert or update or delete on 表名
 for each row
 begin
   触发的执行语句;
 end;
+```
 
-前置触发器：在操作表格之后，检查操作的数据是否合法
+### 前置触发器
+
+> 前置触发器：在操作表格之后，检查操作的数据是否合法
+
+```sql
 create or replace trigger jinzhi_president
 before delete on emp
 for each row
@@ -1185,8 +1266,10 @@ begin
     raise_application_error(-20001,'不能删除老板！');
   end if;
 end;
+```
 
-练习：如果是添加新员工，员工的工资不能超过5000，如果是老员工，员工的每次工资更新不能超过原来工资的20%。
+```sql
+--练习：如果是添加新员工，员工的工资不能超过5000，如果是老员工，员工的每次工资更新不能超过原来工资的20%。
 create or replace trigger check_emp_sal
 before insert or update on emp
 for each row
@@ -1202,7 +1285,7 @@ begin
   end if;
 end;
 
-练习：设置不同时间段对EMP表的禁止操作，星期一三五不能更新，星期二四六不能删除，星期天不能添加新数据。
+--练习：设置不同时间段对EMP表的禁止操作，星期一三五不能更新，星期二四六不能删除，星期天不能添加新数据。
 create or replace trigger check_emp_day
 before insert or update or delete on emp
 for each row
@@ -1220,9 +1303,14 @@ begin
       raise_application_error(-20002,'偶数天不能删除数据');
     end if;  end if;
 end;
+```
 
-后置触发器：同步表格的数据；日志表内容的新增
-记录表格变更状态的日志表的后置触发器：
+### 后置触发器
+
+> 后置触发器：同步表格的数据；日志表内容的新增
+
+```sql
+--记录表格变更状态的日志表的后置触发器：
 create or replace trigger record_emp_logs
 after insert or update or delete on emp
 for each row
@@ -1248,8 +1336,10 @@ begin
     );
   end if;
 end;
+```
 
-表格数据的同步操作：
+```sql
+--表格数据的同步操作：
 create or replace trigger update_s_zongbu_amount
 after insert or delete or update on shenzhen_amount
 for each row
@@ -1268,16 +1358,20 @@ begin
     and saletime=:old.saletime;
   end if;
 end;
+```
 
-缓慢变化维，拉链表
-拉链表：记录了表格每一行数据每一次前后变更状态的表格
-拉链表中用来记录变更状态的列，叫做缓慢变化维
-缓慢变化维有三种记录方法：
-1.直接Update，这样最简洁但是体现不出变化的状态
-2.以列的方式记录最近的变更状态
-3.以行的方式记录每一次前后变更的状态
+### 缓慢变化维，拉链表
 
-先有一个拉链表的表结构
+> 拉链表：记录了表格每一行数据每一次前后变更状态的表格
+> 拉链表中用来记录变更状态的列，叫做缓慢变化维
+> 缓慢变化维有三种记录方法：
+>
+> 1. 直接Update，这样最简洁但是体现不出变化的状态
+> 2. 以列的方式记录最近的变更状态
+> 3. 以行的方式记录每一次前后变更的状态
+
+```sql
+--先有一个拉链表的表结构
 create table teachers_lalian(
 tno varchar2(20),
 tname varchar2(20),
@@ -1285,8 +1379,10 @@ start_time date,
 end_time date,
 status char(1)
 );
+```
 
-用触发器填充拉链表的内容
+```sql
+--用触发器填充拉链表的内容
 create or replace trigger t_lalian
 after insert or update or delete on teachers
 for each row
@@ -1309,9 +1405,10 @@ begin
     );
   end if;
 end;
+```
 
-
-练习：有语文表和数学表，将两个表的分数求出平均分，然后记录在汇总表里面。
+```sql
+--练习：有语文表和数学表，将两个表的分数求出平均分，然后记录在汇总表里面。
 create table chinese_score(
 stuid number,
 course varchar2(20),
@@ -1372,9 +1469,10 @@ begin
   end if;
 
 end;
+```
 
-
-使用触发器去监控表结构的修改   DDL
+```sql
+--使用触发器去监控表结构的修改   DDL
 create table emp_ddl_logs(
 operate_time date,  --操作时间
 object_type varchar2(50),   --操作对象的类型  
@@ -1392,18 +1490,27 @@ begin
     );   
   end if;
 end;
+```
 
+## 包
 
-包：用来统一管理某个模块下面的所有的存储过程、函数、变量等信息。
-先创建包规范，根据规范创建包体
-包规范：声明和定义一个包有什么大概的结构
-create or replace package 包名
-as
-  变量 数据类型:=值;
-  procedure 过程名(输入参数 in 数据类型,输出参数 out 数据类型);
-  function 函数名(输入参数 数据类型) return 返回的数据类型;
-end 包名;
+> 包：用来统一管理某个模块下面的所有的存储过程、函数、变量等信息。
 
+> 先创建包规范，根据规范创建包体
+> 包规范：声明和定义一个包有什么大概的结构
+>
+> ```sql
+> create or replace package 包名
+> as
+>   变量 数据类型:=值;
+>   procedure 过程名(输入参数 in 数据类型,输出参数 out 数据类型);
+>   function 函数名(输入参数 数据类型) return 返回的数据类型;
+> end 包名;
+> ```
+>
+> 
+
+```sql
 create or replace package pkg_emp_dept
 as
   --函数的声明
@@ -1411,26 +1518,31 @@ as
   --过程的声明
   procedure add_dept(v_deptno number,v_dname varchar2,v_loc varchar2);
 end pkg_emp_dept;
+```
 
-包体：定义包里面每一个代码块的具体内容，包体的名字和包规范需要一致
-create or replace package body 包名
-as
-  procedure 过程名(输入参数 in 数据类型,输出参数 out 数据类型)
-  as
-      声明部分
-  begin
-      执行部分
-  end;
+> 包体：定义包里面每一个代码块的具体内容，包体的名字和包规范需要一致
+>
+> ```sql
+> create or replace package body 包名
+> as
+>   procedure 过程名(输入参数 in 数据类型,输出参数 out 数据类型)
+>   as
+>       声明部分
+>   begin
+>       执行部分
+>   end;
+> 
+>   function 函数名(输入参数 数据类型) return 返回的数据类型;
+>   as
+>       声明部分
+>   begin
+>       执行部分
+>   end;
+> 
+> end 包名;
+> ```
 
-  function 函数名(输入参数 数据类型) return 返回的数据类型;
-  as
-      声明部分
-  begin
-      执行部分
-  end;
-
-end 包名;
-
+```sql
 定义包体的内容
 create or replace package pkg_emp_dept
 as
@@ -1469,11 +1581,12 @@ as
     end if;
   end;
 end pkg_emp_dept;
+```
 
-
-练习：
-函数练习：
-创建一个自定义函数，函数的作用是，输入一个字符串，和输入一个单个字符，返回这个字符在字符串中的位置（有多个时只返回第一个），没有存在则返回-1
+```sql
+--练习：
+--函数练习：
+--创建一个自定义函数，函数的作用是，输入一个字符串，和输入一个单个字符，返回这个字符在字符串中的位置（有多个时只返回第一个），没有存在则返回-1
 create or replace function findstr(str varchar2,s varchar2)
 return number
 as
@@ -1488,13 +1601,13 @@ end;
 
 select findstr('helloworld','a') from dual;
 
-存储过程练习：
-有一个保存部门每月工资总和的表格
+--存储过程练习：
+--有一个保存部门每月工资总和的表格
 create table dept_sum_sal(
 deptno number,
 sum_sal number
 );
-使用merge into对比更新的方式，运行过程时同步dept_sum_sal的数据
+--使用merge into对比更新的方式，运行过程时同步dept_sum_sal的数据
 create or replace procedure get_dept_sum
 as
 begin
@@ -1513,8 +1626,8 @@ end;
 call add_emp2('LILY','CLERK',600,30);
 call get_dept_sum();
 
-包的练习：
-将上面两个练习的内容，使用包进行保存。
+--包的练习：
+--将上面两个练习的内容，使用包进行保存。
 create or replace package pro_func_emp
 as
   function findstr(str varchar2,s varchar2) return number;
@@ -1549,11 +1662,16 @@ as
   commit;  
   end;
 end pro_func_emp;
+```
 
-with as语句：
+### with as语句
+
+```sql
 with 别名 as (select 查询语句)
 select 查询别名里面的语句; 
+```
 
+```sql
 --查询每个部门里面工资排第一的员工信息，包含所在的部门名称
 with a as
 (select emp.*,
@@ -1561,15 +1679,11 @@ with a as
   from emp)
 select b.*,dname from (select * from a where r=1) b join dept c on b.deptno=c.deptno;
 
-练习：
-使用with as语句，查询出每个部门里面工资高于自己所在部门平均工资的员工姓名和所在部门编号
+--练习：
+--使用with as语句，查询出每个部门里面工资高于自己所在部门平均工资的员工姓名和所在部门编号
 with avg_sal as (select deptno,avg(sal) s from emp group by deptno)
 select ename,emp.deptno from avg_sal join emp on avg_sal.deptno=emp.deptno
 where emp.sal>avg_sal.s;
-
-
-
-
 
 
 create table min_record(
@@ -1585,16 +1699,16 @@ insert into min_record values(3,'c');
 insert into min_record values(5,'c');
 commit;
 
-答案：
+--答案：
 delete from min_record where rowid in
 (select rowid from
 (select min_record.*,
        row_number() over(partition by tname order by tid) r
   from min_record)
  where r!=1);
+```
 
-
-
+```sql
 上图笔试第15题：
 create table r(
 c1 date,
@@ -1606,7 +1720,6 @@ insert into r values(date'2005-1-2',5);
 commit;
 答案：
 select nvl(to_char(c1,'yyyy-mm-dd'),'合并'),sum(c2) from r group by rollup(c1);
-
 
 上图笔试第16题：
 CREATE TABLE NBA (TEAM VARCHAR2(20),Y NUMBER(4));
@@ -1640,13 +1753,19 @@ select team,min(y) b,max(y) e from
  group by team,r
  having count(1)>1
  order by b asc;
+```
 
+## 跨数据库获取数据
 
-在oracle里面，跨数据库获取数据，使用数据库链接：
+> 在oracle里面，跨数据库获取数据，使用数据库链接
+
+```sql
 create public database link 数据库链接名字
 connect to 对方的用户名 identified by "对方的密码"
 using '对方数据库的TNS信息';
+```
 
+```sql
 create public database link teacher_link
 connect to bigdata identified by "111111"
 using '(DESCRIPTION =
@@ -1656,9 +1775,13 @@ using '(DESCRIPTION =
       (SERVICE_NAME = orcl)
     )
   )';
-
+  
 select * from 表名@链接名;
+```
 
+
+
+```sql
 个人贷款项目需要的6个表格：
 --银行分行信息表
 create table bank_info(
@@ -1868,8 +1991,11 @@ join
   join contract_info b on a.cus_id=b.cus_id) c
   group by age_range) b
   on a.age_range=b.age_range;
+```
 
 
+
+```sql
 统计出下面的数据：
 每个银行的网点（银行分行），贷款平均审核通过时间，审核通过率，总贷款金额，未还款金额，坏账比例(逾期超过180天算坏账)，
 将银行id（number）,贷款平均审核通过时间(number)，审核通过率(number)，总贷款金额(number)，未还款金额(number)，坏账比例(number)写入到一张维度表中
@@ -1913,25 +2039,25 @@ begin
       from
     (select * from balance_info a join petition_info b on a.petition_id=b.petition_id) a) a
 
-    join
-    --坏账比例(超过180天没有还款的金额总数/所有的未还款总数)
-    (select bank_id,sum(loan_balance) huai from balance_info a join petition_info b on a.petition_id=b.petition_id
-    where overdue>180
-    group by bank_id) b
-    on a.bank_id=b.bank_id ) c
-    on c.bank_id=a.bank_id
-    order by a.bank_id;
-    commit;
+join
+--坏账比例(超过180天没有还款的金额总数/所有的未还款总数)
+(select bank_id,sum(loan_balance) huai from balance_info a join petition_info b on a.petition_id=b.petition_id
+where overdue>180
+group by bank_id) b
+on a.bank_id=b.bank_id ) c
+on c.bank_id=a.bank_id
+order by a.bank_id;
+commit;
+
 end;
 
 select * from bank_balance_info_t;
 call pro_all_bank();
 
 
+```
 
-
-
-
+```sql
 create table tb(
 t date,
 c varchar2(10),
@@ -1964,7 +2090,6 @@ select decode(t,date'2010-01-01',date'0001-01-01',t) t,
        nvl(lead(t) over(order by t)-1,date'9999-12-31') t2,
        c,d
   from a;
-
 
 update students_3 set gender=case when gender='M' then '0'
                                   when gender='F' then '1'  end;
@@ -2008,6 +2133,7 @@ select * from
  where yuwen is not null;
 
 -------------------------------------
+
 select distinct tname from xuesheng a join xuanke b on a.xuehao=b.xuehao
 join kecheng c on c.kehao=b.kehao
 where xingming like 'wang%'
@@ -2034,6 +2160,7 @@ join kecheng c on c.kehao=b.kehao
 where tname='刘老师');
 
 -------------------------------------------------
+
 select * from t_stu where s_age between 18 and 20 and s_sex='女' or s_sex is null
 order by s_age desc;
 
@@ -2046,8 +2173,9 @@ order by count(1) desc;
 
 select s_sex,count(1) from
 (select s_id,nvl(s_sex,'男') s_sex from t_stu)
+
 group by s_sex;
--------------------------------------------------
+
 select n1,n2 from
 (select b.*,
        row_number() over(partition by c order by n1) r
@@ -2067,8 +2195,13 @@ select n1,n2 from
  where r=1;
 
 
-数据库的导入和导出：dmp格式（plsql工具里面的exp.exe工具）和sql格式
-----------
+```
+
+## 数据库的导入和导出
+
+> 数据库的导入和导出：dmp格式（plsql工具里面的exp.exe工具）和sql格式
+
+```sql
 select * from emp where sal>all(
 --找出工资最高的人所在的部门的平均工资
 (select avg(sal) from emp where deptno=
@@ -2097,47 +2230,59 @@ select * from emp where sal>all(
        min(sal) over() mi
   from emp )
  where sal=mi)));
+```
 
-冷备份：将数据库关闭之后，对数据库里面的数据文件、控制文件等进行备份
-1.在cmd窗口输入sqlplus进行数据库的命令行模式
-2.输入 system/as sysdba，输入密码
-3.获取数据文件（DBF）、控制文件（CTL）在电脑上的位置
-select name from v$datafile;
-位置   C:\APP\ZX\ORADATA\ORCL\
-select name from v$controlfile;
-位置   C:\APP\ZX\ORADATA\ORCL\
-4.以DBA的身份连接和关闭数据库
-conn/as sysdba;
-shutdown normal;
-5.将所有的数据文件、控制文件复制一份保存在硬盘的其他位置
-copy   C:\APP\ZX\ORADATA\ORCL\*.dbf   C:\bak_dbf
-copy   C:\APP\ZX\ORADATA\ORCL\*.ctl    C:\bak_ctl
+### 冷备份
 
-热备份：在数据库正在运行的时候，对数据进行备份，采用archive log mode方式进行备份
-1.查看数据库是否是archive log的模式
-archive log list;
-2.修改数据库为归档模式
-先关闭数据库：shutdown immediate
-启动数据库：startup mount
-alter database archivelog;
-3.打开数据库
-alter database open;
-4.打开归档的开关
-alter system set log_archive_start=true scope=spfile;
-5.数据的备份位置
+> 冷备份：将数据库关闭之后，对数据库里面的数据文件、控制文件等进行备份
 
-冷热的优缺点：
+1. 在cmd窗口输入sqlplus进行数据库的命令行模式
+
+2. 输入 system/as sysdba，输入密码
+
+3. 获取数据文件（DBF）、控制文件（CTL）在电脑上的位置
+
+   ```sql
+   select name from v$datafile;
+   位置   C:\APP\ZX\ORADATA\ORCL\
+   select name from v$controlfile;
+   位置   C:\APP\ZX\ORADATA\ORCL\
+   ```
+
+4. 以DBA的身份连接和关闭数据库
+   conn/as sysdba;
+   shutdown normal;
+
+5. 将所有的数据文件、控制文件复制一份保存在硬盘的其他位置
+   copy   C:\APP\ZX\ORADATA\ORCL\*.dbf   C:\bak_dbf
+   copy   C:\APP\ZX\ORADATA\ORCL\*.ctl    C:\bak_ctl
+
+### 热备份
+
+> 热备份：在数据库正在运行的时候，对数据进行备份，采用archive log mode方式进行备份
+
+1. 查看数据库是否是archive log的模式
+   archive log list;
+2. 修改数据库为归档模式
+   先关闭数据库：shutdown immediate
+   启动数据库：startup mount
+   alter database archivelog;
+3. 打开数据库
+   alter database open;
+4. 打开归档的开关
+   alter system set log_archive_start=true scope=spfile;
+5. 数据的备份位置
+
+### 冷热的优缺点
+
 冷备份：
-优点--备份和恢复比较迅速，维护成本低
-缺点--需要关闭服务器，只能备份某个时间点的数据
+
+- 优点--备份和恢复比较迅速，维护成本低
+
+- 缺点--需要关闭服务器，只能备份某个时间点的数据
+
 热备份：
-优点--理论上可以直接回溯到服务器上一秒的数据，备份更加精确
-缺点--需要占用更多的服务器资源，需要很大的空间去存储归档文件
 
-## 函数
+- 优点--理论上可以直接回溯到服务器上一秒的数据，备份更加精确
+- 缺点--需要占用更多的服务器资源，需要很大的空间去存储归档文件
 
-## 异常处理
-
-## 触发器
-
-## 包
