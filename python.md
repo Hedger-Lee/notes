@@ -607,7 +607,439 @@ range(10,0,-1)    10-1
 range(10,0,-2)  10 8 6 4 2
 ```
 
+for i in range(1,8):
 
+​    if i<=4:
+
+​        print((4-i)*' '+i*'* ')
+
+​    else:
+
+​        print((i-4)*' '+(8-i)*'* ')
+
+\#九九乘法表
+
+for i in range(1,10):
+
+​    for j in range(1,i+1):
+
+​        print('{}x{}={}'.format(j,i,i*j), end='\t')
+
+​    print()
+
+while的循环控制：判断为真，进入循环，为假的时候跳出循环
+
+while  判断:
+
+执行语句
+
+n=1
+
+while n<=10:
+
+​    print(n)
+
+​    n+=1
+
+计算数字的while游戏：
+
+n=3
+
+user=int(input("计算%dx2的结果="%(n)))
+
+while user==n*2:
+
+​    print('答对了，你真聪明！')
+
+​    n=n*2
+
+​    user=int(input("计算%dx2的结果="%(n)))
+
+print("真的是太笨了，这都不会！！！")
+
+\#练习
+
+\#有一张纸厚度是1mm，珠穆朗玛峰高度是8848m，
+
+\#请问这个纸要对折多少次，才会超过山的高度
+
+zhi=1
+
+shan=8848000
+
+cishu=0
+
+while zhi
+
+​    zhi=zhi*2
+
+​    cishu=cishu+1
+
+print(cishu)
+
+循环的关键字：
+
+结束循环   break
+
+for i in range(1,11):
+
+​    if i==5:
+
+​        break
+
+​    print(i)
+
+跳过本次的循环，直接开始下一次循环  continue
+
+for i in range(1,11):
+
+​    if i==5:
+
+​        continue
+
+​    print(i)
+
+\#可以循环五次，让用户输入英文单词，将输入的单词保存在一个列表中，
+
+\#如果用户输入的是quit，那么马上退出，并且打印出已经保存的内容
+
+liebiao=[]
+
+for i in range(5):
+
+​    w=input("word:")
+
+​    if w=='quit':
+
+​        break
+
+​    liebiao.append(w)
+
+print(liebiao)
+
+常用模块：
+
+在当前代码页面，导入需要的模块
+
+import  模块名字
+
+随机模块：random
+
+import  random
+
+\#随机小数，大于0小于1的小数
+
+a=random.random()
+
+print(a)
+
+\#随机整数，大于等于开始值，小于等于结束值
+
+a=random.randint(1,5)
+
+print(a)
+
+\#在有序的数据类型中进行数据的随机，字符串 列表  元组
+
+a=random.choice("abcdefg")
+
+print(a)
+
+\#有一个列表，['Apple','Pear','banana']，在里面随机的抽选一个内容，
+
+\#如果首字母是大写的，那么就把随机的内容打印出来
+
+liebiao=['Apple','Pear','banana']
+
+a=random.choice(liebiao)
+
+if a[0]==a[0].upper():
+
+​    print(a)
+
+else:
+
+​    print('小写的不要')
+
+\#自己造一个双色球的号码随机，红色区域是1-32的数字，数字不能重复，
+
+\#蓝色是1-6的数字，不能重复，红色是选择5个，蓝色是选择2个
+
+\#将这7个数字随机出来
+
+reds=[]
+
+for i in range(5):
+
+​    red=random.randint(1,32)
+
+​    while red in reds:
+
+​       red=random.randint(1,32) 
+
+​    reds.append(red)
+
+blues=[]
+
+for i in range(2):
+
+​    blue=random.randint(1,6)
+
+​    while blue in blues:
+
+​       blue=random.randint(1,6) 
+
+​    blues.append(blue) 
+
+reds.sort()
+
+blues.sort()
+
+print(reds+blues)
+
+\#和电脑玩石头剪刀布，电脑随机一个，你选择一个，最后打印谁赢了
+
+diannao=random.randint(1,3)
+
+games={1:'石头',2:'剪刀',3:'布'}
+
+print("电脑出的是：",games[diannao])
+
+user=int(input("1:'石头',2:'剪刀',3:'布'："))
+
+if diannao==user:
+
+​    print('平手')
+
+elif diannao==1 and user==2 or diannao==2 and user==3 or diannao==3 and user==1:
+
+​    print('电脑赢了')
+
+else:
+
+​    print('你赢了')
+
+\#在上面的字典中，随机一个品种，并且将对应的值一起打印出来
+
+menu={'炒饭':18,'炒粉':16,'盖浇饭':14}
+
+a=random.choice(list(menu.keys()))
+
+b=menu[a]
+
+print(a)
+
+print(b)
+
+\#有一只猴子，有一堆桃子，每天会吃掉桃子数量的一半再加一个。
+
+\#第九天的时候，发现只有一个桃子了，请问一开始有几个桃子
+
+tao=1
+
+for i in range(1,9):
+
+​    tao=(tao+1)*2
+
+print(tao)
+
+users=(('smith',10,1500,100),('allen',20,800,200),('miller',30,1600),('scott',30,1200))
+
+\#取出数据，打印成如下格式：
+
+\#姓名：smith 部门:10 工资：1500 
+
+\#姓名：allen 部门:20 工资：800  奖金:200
+
+\#姓名：miller 部门:30 工资：1600
+
+\#姓名：scott 部门:30 工资：1200
+
+for user in users:
+
+​    print("姓名：{} 部门:{} 工资：{}".format(user[0],user[1],user[2]),end=' ')
+
+​    if len(user)==4:
+
+​        print("奖金:{}".format(user[3]))
+
+​    else:
+
+​        print()
+
+\# 有个列表[1,2,2,3,8,7,2]，删除里面所有的2
+
+liebiao=[1,2,2,3,8,7,2]
+
+for i in range(liebiao.count(2)):
+
+​    liebiao.remove(2)
+
+print(liebiao)
+
+时间模块：获取当前的系统时间
+
+import  datetime
+
+a=datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+print(a)
+
+**文件的读写：**
+
+文本文档的读写操作：
+
+写入的操作
+
+\#确定文件的位置和名字
+
+filename="C:/文件/a1.txt"
+
+\#双击打开文件
+
+file=open(filename,"a")    #w   write覆盖写入      a   append追加写入
+
+\#写入文件的内容
+
+file.write("\n")
+
+file.write("lilei")
+
+\#关闭保存文件
+
+file.close()
+
+\#练习：users=(('smith',10,1500,100),('allen',20,800,200),('miller',30,1600),('scott',30,1200))
+
+\#将上面元组中的名字保存到一个names.txt文件中，一个名字占一行
+
+users=(('smith',10,1500,100),('allen',20,800,200),('miller',30,1600),('scott',30,1200))
+
+filename='C:/文件/names.txt'
+
+file=open(filename,'a')
+
+for u in users:
+
+​    file.write(u[0]+'\n')
+
+file.close()
+
+读取的操作：一次open就只能从上往下读取一次
+
+\#确定要读取的文件位置和名字
+
+filename='C:/文件/names.txt'
+
+\#打开文件
+
+file=open(filename,'r')    #  r    read
+
+\#读取内容
+
+\#  read() 是把整个文件的内容当成一个字符串
+
+neirong1=file.read()    
+
+print(neirong1)
+
+\#  readlines()  是把整个文件的内容当成一个列表
+
+neirong2=file.readlines()
+
+print(neirong2)
+
+\#关闭文件
+
+file.close()
+
+\#读取users.txt文件，处理成     姓名,性别,年龄,爱好     的格式
+
+filename="C:/文件/users.txt"
+
+file=open(filename,'r')
+
+contents=file.readlines()
+
+file.close()
+
+filename2="C:/文件/users_2.txt"
+
+file2=open(filename2,'a')
+
+'''cishu=1
+
+hang=''
+
+for i in contents:
+
+​    hang=hang+','+i.replace('\n','')
+
+​    cishu=cishu+1
+
+​    if cishu==5:
+
+​        file2.write(hang[1:]+'\n')
+
+​        cishu=1
+
+​        hang=''
+
+'''
+
+cishu=0
+
+for i in contents:
+
+​    i=i.replace('\n','')
+
+​    cishu+=1
+
+​    if cishu%4==0:
+
+​        file2.write(i+'\n')
+
+​    else:
+
+​        file2.write(i+',')
+
+file2.close()
+
+**json文件的读取：和文本的读写方法是一样的**
+
+什么是json：json是和字典一样的一种键值对的格式，一般是在网络数据的传输和数据的格式化存储上
+
+​    ![alipay.js](http://note.youdao.com/yws/public/resource/e3787f23c5c181b91bd8deb4e811b295/xmlnote/1CBAC120160341AC900CB9A8DED8570A/8391)
+
+filename="C:/文件/alipay.js"
+
+file=open(filename,'r')
+
+contents=file.read()
+
+file.close()
+
+\#将字符串格式的json，转换成字典格式
+
+import json
+
+c=json.loads(contents)
+
+print(c['alipay_trade_pay_response']['voucher_detail_list'][0]['name'])
+
+print(c['alipay_trade_pay_response']['voucher_detail_list'][0]['memo'])
+
+练习：读取alipay.js文件，将trade_no、real_amount、goods_name读取出来
+
+课后练习：
+
+​    ![products.txt](http://note.youdao.com/yws/public/resource/e3787f23c5c181b91bd8deb4e811b295/xmlnote/C80258DD18A1433689D2021604DC010E/8395)
+
+将这个products文件中，所有的ProductID，ProductName，UnitPrice三个属性读取出来，并且另存到另一个文件中，存放的格式例子如下：
+
+1,Chai,18.0000
+
+2,Chang,19.0000
 
 常用函数
 
