@@ -1041,9 +1041,339 @@ print(c['alipay_trade_pay_response']['voucher_detail_list'][0]['memo'])
 
 2,Chang,19.0000
 
-常用函数
 
-常用模块
+
+
+
+## 常用模块
+
+### csv模块
+
+#### csv文件读取
+
+```python
+#导入csv操作的模块
+import csv
+
+#定位文件的位置
+filename="C:/文件/香港酒店数据.csv"
+
+#使用csv的读取工具打开文件
+file=open(filename,'r')
+f=csv.reader(file)
+
+#使用for循环以行为单位读取文档数据
+for i in f:
+    print(i[1]+'\t'+i[2])
+    
+#关闭窗口
+file.close()
+```
+
+#### csv文件写入
+
+```python
+import csv
+
+filename="C:/文件/new.csv"
+file=open(filename,'w')
+f=csv.writer(file)
+
+#定义要写入什么内容
+#外面的列表，表示整个文件，里面的列表，表示每一行数据
+datas=[['苹果',18],['桃子',26],['栗子',28],['橘子',6]]
+
+#开始写入数据
+for i in datas:
+    #以行为单位写入，每次写入一个列表
+    f.writerow(i)
+file.close()
+```
+
+```python
+#练习：读取香港酒店的数据，将里面的酒店中文名，地址，价格读取出来，
+#将这三个数据，写入到另外的一个csv文件中
+答案：
+
+import csv
+
+filename="C:/文件/香港酒店数据.csv"
+file=open(filename,'r')
+f1=csv.reader(file)
+hangs=[]
+for i in f1:
+    hang=[i[2],i[4],i[8]]
+    hangs.append(hang)
+file.close()
+print(hangs)
+
+filename2="C:/文件/hotel.csv"
+file2=open(filename2,'w')
+f2=csv.writer(file2)
+for h in hangs:
+    f2.writerow(h)
+file2.close()
+```
+
+### xml模块
+
+#### 读取xml文件
+
+```python
+from xml.dom.minidom import parse
+
+# 解析文件
+file = parse("D:/test/product.xml")
+
+# 获取文件DOM对象
+contents = file.documentElement
+# print(contents)
+
+# 获取指定标签的所有对象，得到一个NodeList对象列表，里面存的是一个个的Element对象
+products = contents.getElementsByTagName("m:properties")
+# print(products)
+
+# 获取文本信息
+for p in products:
+    ProductID = p.getElementsByTagName("d:ProductID")
+
+    # print(ProductID[0], type(ProductID[0]))
+    # ProductID[0] 元素对象，Element对象，存储于NodeList对象列表中
+
+    # print(ProductID[0].childNodes[0].data, type(ProductID[0].childNodes[0].data))
+    # Element.childNodes也是NodeList对象列表，存放一个个的Text文本对象
+    # Text.data取出对应的文本信息
+
+    # 通过标签对象获取元素文本信息
+    product_id = ProductID[0].childNodes[0].data
+    # print(product_id)
+
+    ProductName = p.getElementsByTagName("d:ProductName")
+    product_name = ProductName[0].childNodes[0].data
+
+    UnitPrice = p.getElementsByTagName("d:UnitPrice")
+    unit_price = UnitPrice[0].childNodes[0].data
+
+    print(product_id,product_name,unit_price)
+```
+
+### 处理Excel
+
+#### 读取excel xlrd模块
+
+```python
+#导入读取excel的模块
+import xlrd
+
+#指定文件位置
+filename="C:/文件/香港酒店数据.xls"
+
+#打开文件
+wb=xlrd.open_workbook(filename)
+
+#使用不同的方式选择要读取的表单
+#使用表单的序号
+#st=wb.sheet_by_index(1)
+
+#使用表单的名称
+st=wb.sheet_by_name('BIGDATA')
+
+#获取表单中有内容的行数
+nr=st.nrows
+
+#使用for循环读取文件的行
+for i in range(nr):
+    print(st.row_values(i))
+```
+
+#### 写入Excel xlwt模块
+
+```python
+#导入excel写入的模块
+import xlwt
+
+#定义写入文件的位置和名字
+filename="C:/文件/x1.xls"
+
+#创建excel文件
+wb=xlwt.Workbook(encoding='utf-8')
+
+#在excel文件中创建表单
+st=wb.add_sheet('BIGDATA')
+st2=wb.add_sheet('TEST')
+
+#在表单中写入数据   行  列  数据
+st.write(2,3,'李雷')
+st2.write(2,1,'哈哈哈')
+
+#保存这个文件
+wb.save(filename)
+```
+
+#### 处理时间
+
+```python
+import xlrd
+from datetime import date
+
+file_name = "D:/test/香港酒店数据.xls"
+
+# 打开文件，获取文件操作句柄
+wb = xlrd.open_workbook(file_name)
+
+# 获取要读取的表单
+# 1.使用表单的序号
+st = wb.sheet_by_index(1)
+
+# 2.使用表单的名称
+# st = wb.sheet_by_name('BIGDATA')
+
+# 获取表单中有内容的行数
+nr = st.nrows
+
+# 用for循环读取文件行
+# for i in range(nr):
+#     print(st.row_values(i))
+
+# # 日期处理
+# 还原时间的格式，时间在excel里面是用1900-1-1开始至今的天数来表示的
+for i in range(nr):
+    t = st.cell(0, 4)
+    # 将日期格式当成元组来进行存储
+    # t_v = xlrd.xldate_as_tuple(t.value, datemode=0)
+
+    t_v = xlrd.xldate_as_datetime(t.value, datemode=0)
+    print(t_v, type(t_v))
+    print(t_v.strftime("%Y-%m-%d"))
+
+    # print(*t_v[:3])
+    # 使用strftime方法处理时间的格式
+    # d = date(*t_v[:3]).strftime("%Y-%m-%d")
+    # print(d,type(d))
+
+```
+
+### requests模块
+
+> 第三方平台的网络接口的数据：API
+>
+> 一个接口就是一个http的链接
+
+```python
+import json
+import requests
+
+url = "https://api.inews.qq.com/newsqa/v1/automation/foreign/country/ranklist"
+
+# 获取文本信息
+contents = requests.get(url).text
+
+contents = json.loads(contents)["data"]
+print(type(contents))
+
+for d in contents:
+    print(d["name"], d["date"], d["confirmAdd"])
+
+# 获取json格式
+# contents = requests.get(url).json()
+#
+# contents = contents["data"]
+# print(type(contents))
+#
+# for d in contents:
+#     print(d["name"], d["date"], d["confirmAdd"])
+
+```
+
+```python
+#练习：获取接口：https://api.inews.qq.com/newsqa/v1/automation/modules/list?modules=FAutoCountryMerge，将里面法国每一天的确诊数据保存到excel文档中，
+#保存日期date和确诊confirm两个属性的内容
+
+import xlwt
+import requests
+
+url = "https://api.inews.qq.com/newsqa/v1/automation/modules/list?modules=FAutoCountryMerge"
+
+contents = requests.get(url).json()
+
+# data = contents["data"]["FAutoCountryMerge"]["法国"]["list"]
+data = contents["data"]["FAutoCountryMerge"]
+f_list = data.keys()
+# print(type(data))
+
+wb = xlwt.Workbook(encoding="utf-8")
+# st = wb.add_sheet("法国")
+# st.write(0, 0, "时间")
+# st.write(0, 1, "确诊人数")
+
+for i in f_list:
+    st = wb.add_sheet(i)
+    st.write(0, 0, "时间")
+    st.write(0, 1, "确诊人数")
+    row = 1
+    for info in data[i]["list"]:
+        date = info["date"]
+        confirm = info["confirm"]
+        st.write(row, 0, date)
+        st.write(row, 1, confirm)
+        row += 1
+
+# row = 1
+# for info in data:
+#     date = info["date"]
+#     confirm = info["confirm"]
+#     st.write(row, 0, date)
+#     st.write(row, 1, confirm)
+#     row += 1
+
+wb.save("D:/test/info.xls")
+
+```
+
+```python
+#豆瓣读书榜：
+#https://read.douban.com/j/index//charts?type=intermediate_finalized&index=featured&verbose=1&limit=50
+#保存书的  书名title   作者名name  分类shortName  评分averageRating
+#保存到excel中
+
+import requests
+import xlwt
+
+url = "https://read.douban.com/j/index//charts?type=intermediate_finalized&index=featured&verbose=1&limit=50"
+headers = {
+    "user-agent": "Mozilla/5.0 (Windows NT 6.1; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
+                  "Chrome/85.0.4183.121 Safari/537.36 "
+}
+
+contents = requests.get(url, headers=headers).json()["list"]
+
+wb = xlwt.Workbook(encoding="utf-8")
+st = wb.add_sheet("中篇榜")
+st.write(0, 0, "书名")
+st.write(0, 1, "作者")
+st.write(0, 2, "分类")
+st.write(0, 3, "评分")
+
+row = 1
+
+for info in contents:
+    title = info["works"]["title"]
+    if info["works"]["author"]:
+        name = info["works"]["author"][0]["name"]
+    else:
+        name = info["works"]["origAuthor"][0]["name"]
+    kind = info["works"]["kinds"][0]["shortName"]
+    rate = info["works"]["averageRating"]
+    st.write(row, 0, title)
+    st.write(row, 1, name)
+    st.write(row, 2, kind)
+    st.write(row, 3, rate)
+    row += 1
+wb.save("D:/test/novel.xls")
+
+```
+
+
 
 自定义函数
 
