@@ -547,7 +547,7 @@ select a.*,(amount-last_m)/last_m from
 
 (select sales.*,
 
-​       lag(amount) over(order by m) last_m
+       lag(amount) over(order by m) last_m
 
   from sales) a;
 ```
