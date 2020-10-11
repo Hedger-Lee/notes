@@ -963,3 +963,167 @@ A1  -->  hive表A中
 A1  -->  hive表A中
 
 sqoop import --connect jdbc:oracle:thin:@192.168.2.135:1521/ORCL --username bigdata --password 111111 --table EMP_NEW_RE --target-dir /user/hive/warehouse/practice.db/emp --incremental append --check-column EMPNO --last-value 1001 -m 1
+
+
+
+
+
+
+
+
+
+sqoop命令：
+
+1. 查看表格：
+
+   ```shell
+   sqoop list-tables --connect jdbc:oracle:thin:@192.168.3.22:1521/ORCL --username hedger --password 123456
+   ```
+
+2. 全量导入表格
+
+   ```
+   sqoop import 
+   --hive-import 
+   --connect jdbc:oracle:thin:@192.168.3.22/ORCL 
+   --username hedger 
+   --password 123456 
+   --table EMP 
+   --hive-database test 
+   --fields-terminated-by ',' 
+   -m 1
+   ```
+
+   ```shell
+   import 
+   --hive-import 
+   --connect jdbc:oracle:thin:@192.168.3.22:1521/ORCL 
+   --username hedger 
+   --password 123456 
+   --table EMP 
+   --hive-database test 
+   --fields-terminated-by ',' 
+   -m 1
+   ```
+
+   
+
+3. 增量导入
+   3.1 追加
+
+   ```shell
+   sqoop import 
+   --append 
+   --connect jdbc:oracle:thin:@192.168.3.22/ORCL 
+   --username hedger 
+   --password 123456 
+   --table EMP_RE 
+   --target-dir /user/hive/test.db/emp 
+   --fields-terminated-by ',' 
+   -m 1
+   ```
+
+   ```shell
+   sqoop import 
+   --append 
+   --connect jdbc:oracle:thin:@192.168.3.22:1521/ORCL 
+   --username hedger 
+   --password 123456 
+   --table EMP_RE 
+   --target-dir /user/hive/warehouse/test.db/emp 
+   --fields-terminated-by ',' 
+   -m 1
+   ```
+
+   
+
+   3.2 补充
+
+   ```
+   sqoop import 
+   --connect jdbc:oracle:thin:@192.168.3.22/ORCL 
+   --username hedger 
+   --password 123456 
+   --table EMP_RE 
+   --target-dir /user/hive/test.db/emp 
+   --incremental append 
+   --check-column EMPNO 
+   --last-value 1001 
+   -m 1
+   ```
+
+   ```shell
+   sqoop import 
+   --connect jdbc:oracle:thin:@192.168.3.22:1521/ORCL 
+   --username hedger 
+   --password 123456 
+   --table EMP_RE 
+   --target-dir /user/hive/warehouse/test.db/emp 
+   --incremental append 
+   --check-column EMPNO 
+   --last-value 1001 
+   -m 1
+   ```
+
+   
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
